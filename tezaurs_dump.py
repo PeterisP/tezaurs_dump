@@ -3,6 +3,7 @@ from db_config import db_connection_info
 
 import psycopg2
 from psycopg2.extras import NamedTupleCursor
+import json
 
 connection = None
 def db_connect():
@@ -33,25 +34,63 @@ def fetch_lexemes():
     global connection
     cursor = connection.cursor(cursor_factory=NamedTupleCursor) 
     sql = """
-select * from tezaurs.lexemes
-limit 10
+select l.id as lexeme_id, e.id as entry_id, e.human_id, paradigm_id, l.data, stem1, stem2, stem3, lemma
+from tezaurs.lexemes l
+join tezaurs.entries e on l.entry_id = e.id
+where l.type_id = 1 -- words, not named entities or MWE's
 """
+# TODO - filtrs uz e.release_id lai ņemtu svaigāko relīzi nevis visas
+
     cursor.execute(sql)
     while True:
         rows = cursor.fetchmany(1000)
         if not rows:
             break
         for row in rows:
-            yield row
+            if not row.paradigm_id:
+                continue
+
+            lexeme = {
+                'lexeme_id' : row.lexeme_id,
+                'entry_id'  : row.entry_id,
+                'human_id'  : row.human_id,
+                'paradigm'  : row.paradigm_id,
+                'lemma'     : row.lemma
+            }
+            if row.stem1:
+                lexeme['stem1'] = row.stem1
+            if row.stem2:
+                lexeme['stem2'] = row.stem2
+            if row.stem3:
+                lexeme['stem3'] = row.stem3
+            if row.data:
+                dati = row.data
+                gram = dati.get('Gram')
+                if gram and gram.get('Flags'):
+                    gram = dict(gram)
+                    gram.update(gram.get('Flags'))
+                    del gram['Flags']
+
+                if dati.get('Pronunciation'):
+                    if not gram:
+                        gram = {}
+                    gram['Pronunciation'] = dati['Pronunciation']
+                    dati = dict(dati)
+                    del dati['Pronunciation']
+
+                if not gram or len(dati) != 1:
+                    print('Interesting data: %s' % (row.data, ))
+                lexeme['attributes'] = gram
+            yield lexeme
 
 def dump_lexemes(filename):
     with open(filename, 'w') as f:
-        for lexeme in fetch_lexemes():
-            f.write(str(lexeme))
+        for lexeme in fetch_lexemes():            
+            f.write(json.dumps(lexeme, ensure_ascii=False))
             f.write('\n')
 
 db_connect()
 
-dump_lexemes('test.json')
+dump_lexemes('tezaurs_lexemes.json')
 
 print('Done!')
