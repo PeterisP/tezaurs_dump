@@ -50,6 +50,8 @@ where l.type_id = 1 -- words, not named entities or MWE's
         for row in rows:
             if not row.paradigm_id:
                 continue
+            if row.lemma in ['būt']:
+                continue # Hardcoded exceptions
 
             lexeme = {
                 'lexeme_id' : row.lexeme_id,
