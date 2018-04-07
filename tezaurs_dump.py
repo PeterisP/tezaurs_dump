@@ -59,17 +59,26 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 'lemma'     : row.lemma
             }
             if row.stem1:
-                lexeme['stem1'] = row.stem1[1:-1] # noņemam {}
+                stem = row.stem1
+                if stem.startswith('{') and stem.endswith('}'):
+                    stem = stem[1:-1] # noņemam {}
+                lexeme['stem1'] = stem
             if row.stem2:
                 if ',' in row.stem2:
                     print('Dubultcelms %s'%(row.stem2, ))
                     continue
-                lexeme['stem2'] = row.stem2[1:-1] # noņemam {}
+                stem = row.stem2
+                if stem.startswith('{') and stem.endswith('}'):
+                    stem = stem[1:-1] # noņemam {}
+                lexeme['stem2'] = stem
             if row.stem3:
                 if ',' in row.stem3:
                     print('Dubultcelms %s'%(row.stem3, ))
                     continue
-                lexeme['stem3'] = row.stem3[1:-1] # noņemam {}
+                stem = row.stem3
+                if stem.startswith('{') and stem.endswith('}'):
+                    stem = stem[1:-1] # noņemam {}
+                lexeme['stem3'] = stem
             if row.data:
                 dati = row.data
                 gram = dati.get('Gram')
