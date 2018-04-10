@@ -60,6 +60,8 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 'paradigm'  : row.paradigm_id,
                 'lemma'     : row.lemma
             }
+            altstem2 = None
+            altstem3 = None
             if row.stem1:
                 stem = row.stem1
                 if stem.startswith('{') and stem.endswith('}'):
@@ -67,20 +69,28 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 lexeme['stem1'] = stem
             if row.stem2:
                 if ',' in row.stem2:
-                    print('Dubultcelms %s'%(row.stem2, ))
-                    continue
-                stem = row.stem2
-                if stem.startswith('{') and stem.endswith('}'):
-                    stem = stem[1:-1] # noņemam {}
+                    assert row.stem2.startswith('{"')
+                    assert row.stem2.endswith('"}')
+                    stem = row.stem2.split(',', maxsplit=1)[0][2:]
+                    altstem2 = row.stem2.split(',', maxsplit=1)[1][:-2]
+                    # print('Dubultcelms %s - sadalīju "%s" un "%s"'%(row.stem2, stem, altstem2))
+                else:
+                    stem = row.stem2
+                    if stem.startswith('{') and stem.endswith('}'):
+                        stem = stem[1:-1] # noņemam {}
                 lexeme['stem2'] = stem
             if row.stem3:
                 if ',' in row.stem3:
-                    print('Dubultcelms %s'%(row.stem3, ))
-                    continue
-                stem = row.stem3
-                if stem.startswith('{') and stem.endswith('}'):
-                    stem = stem[1:-1] # noņemam {}
+                    assert row.stem3.startswith('{"')
+                    assert row.stem3.endswith('"}')
+                    stem = row.stem3.split(',', maxsplit=1)[0][2:]
+                    altstem3 = row.stem3.split(',', maxsplit=1)[1][:-2]
+                else:
+                    stem = row.stem3
+                    if stem.startswith('{') and stem.endswith('}'):
+                        stem = stem[1:-1] # noņemam {}
                 lexeme['stem3'] = stem
+
             if row.data:
                 dati = row.data
                 gram = dati.get('Gram')
@@ -96,7 +106,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                             value = flags[key]
                     gram = dict(gram)
                     gram.update(flags)
-                    del gram['Flags']
+                    del gram['Flags']                    
 
                 if dati.get('Pronunciation'):
                     if not gram:
@@ -105,10 +115,20 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     dati = dict(dati)
                     del dati['Pronunciation']
 
+                if gram and (gram.get('Citi') == 'Pārejošs' or gram.get('Citi') == 'Nepārejošs'):
+                    gram['Transitivitāte'] = gram.get('Citi')
+                    del gram['Citi']
+
                 if not gram or len(dati) != 1:
                     print('Interesting data: %s' % (row.data, ))
                 lexeme['attributes'] = gram
             yield lexeme
+            if altstem2 or altstem3:
+                if altstem2:
+                    lexeme['stem2'] = altstem2
+                if altstem3:
+                    lexeme['stem3'] = altstem3
+                yield lexeme
 
 def dump_lexemes(filename):
     with open(filename, 'w') as f:
