@@ -119,6 +119,30 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     gram['Transitivitāte'] = gram.get('Citi')
                     del gram['Citi']
 
+                if gram and gram.get('Lietojuma ierobežojumi'):
+                    if isinstance(gram.get('Lietojuma ierobežojumi'), str):
+                        gram['Lietojuma ierobežojumi'] = [gram.get('Lietojuma ierobežojumi')]
+                    for i in gram['Lietojuma ierobežojumi']:
+                        if i in ['Sarunvaloda', 'Vēsturisks', 'Novecojis', 'Nevēlams', 'Žargonvārds', 'Apvidvārds', 'Neaktuāls', 'Īsziņās', 'Neliterārs', 'Vulgārisms', 'Barbarisms', 'Bērnu valoda', 'Biblisms']:
+                            gram['Lietojums'] = i        
+                        elif i in ['Poētiska stilistiskā nokrāsa', 'Vienkāršrunas stilistiskā nokrāsa', 'Nievājoša ekspresīvā nokrāsa', 'Sirsnīga emocionālā nokrāsa', 'Ironiska ekspresīvā nokrāsa', 'Folkloras valodai raksturīga stilistiskā nokrāsa', 'Humoristiska ekspresīvā nokrāsa', 'Pārnestā nozīmē']:
+                            gram['Stils'] = i
+                        else:
+                            print("Nesaprasti lietojuma ierobežojumi: '%s'" % (i,))
+                    del gram['Lietojuma ierobežojumi']
+
+                if gram and gram.get('Lietojuma biežums'):
+                    gram['Biežums'] = gram.get('Lietojuma biežums')
+                    del gram['Lietojuma biežums']
+
+                if gram and gram.get('Joma'):
+                    gram['Nozare'] = gram.get('Joma')
+                    del gram['Joma']
+
+                if gram and gram.get('Darbības vārda prefikss'):
+                    gram['Priedēklis'] = gram.get('Darbības vārda prefikss')
+                    del gram['Darbības vārda prefikss']
+
                 if not gram or len(dati) != 1:
                     print('Interesting data: %s' % (row.data, ))
                 lexeme['attributes'] = gram
