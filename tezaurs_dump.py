@@ -69,10 +69,8 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 lexeme['stem1'] = stem
             if row.stem2:
                 if ',' in row.stem2:
-                    assert row.stem2.startswith('{"')
-                    assert row.stem2.endswith('"}')
-                    stem = row.stem2.split(',', maxsplit=1)[0][2:]
-                    altstem2 = row.stem2.split(',', maxsplit=1)[1][:-2]
+                    stem = row.stem2.split(',', maxsplit=1)[0]
+                    altstem2 = row.stem2.split(',', maxsplit=1)[1]
                     # print('Dubultcelms %s - sadalīju "%s" un "%s"'%(row.stem2, stem, altstem2))
                 else:
                     stem = row.stem2
@@ -81,10 +79,8 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 lexeme['stem2'] = stem
             if row.stem3:
                 if ',' in row.stem3:
-                    assert row.stem3.startswith('{"')
-                    assert row.stem3.endswith('"}')
-                    stem = row.stem3.split(',', maxsplit=1)[0][2:]
-                    altstem3 = row.stem3.split(',', maxsplit=1)[1][:-2]
+                    stem = row.stem3.split(',', maxsplit=1)[0]
+                    altstem3 = row.stem3.split(',', maxsplit=1)[1]
                 else:
                     stem = row.stem3
                     if stem.startswith('{') and stem.endswith('}'):
