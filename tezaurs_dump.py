@@ -92,14 +92,43 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 gram = dati.get('Gram')
                 if gram and gram.get('Flags'):
                     flags = dict(gram.get('Flags'))
-                    for key in gram.get('Flags'):   
+                    for key in dict(flags):   
                         value = flags[key]
                         if type(value) is list and len(value) == 1:
                             flags[key] = value[0]
-                            value = flags[key]
+
+                    if flags.get('Kategorija') == 'Ģenitīvenis':
+                        if flags.get('Locīšanas īpatnības') == 'Sastingusi forma':
+                            del flags['Locīšanas īpatnības']
+                        else:
+                            print('Ģenitīvenim dīvainas "Locīšanas īpatnības"', row.lemma, dati)
+                        if flags.get('Citi') == 'Nelokāms vārds':
+                            del flags['Citi']
+                        else:
+                            print('Ģenitīvenim dīvaini "Citi"', row.lemma, dati)
+                        if flags.get('Locījums') == 'Ģenitīvs':
+                            del flags['Locījums']
+                        else:
+                            print('Ģenitīvenim dīvains locījums', row.lemma, flags)
+                        if flags.get('Skaitlis') == 'Daudzskaitlis':
+                            del flags['Skaitlis']
+                            flags['Skaitlis_2'] = 'Daudzskaitlinieks'
+
+                    for key in dict(flags):   
+                        value = flags[key]
                         if key == 'Dzimte' and type(value) is not list and value.endswith(' dzimte'):
                             flags[key] = value[:-7]
                             value = flags[key]
+                        # if key == 'Skaitlis':
+                        #     if value == 'Vienskaitlis':
+                        #         del flags[key]
+                        #     else:
+                        #         print(value, row.lemma, flags)
+                        if key == 'Locījums':
+                            print(value, row.lemma, flags)
+
+                    if flags.get('Skaitlis'):
+                        del flags['Skaitlis'] # Nav precīza informācija, konfliktē ar analizatora prasībām
                     gram = dict(gram)
                     gram.update(flags)
                     del gram['Flags']                    
