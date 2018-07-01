@@ -92,6 +92,9 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 gram = dati.get('Gram')
                 if gram and gram.get('Flags'):
                     flags = dict(gram.get('Flags'))
+                    if 'Vārda daļa' in str(flags.get('Kategorija')):
+                        continue
+
                     for key in dict(flags):   
                         value = flags[key]
                         if type(value) is list and len(value) == 1:
@@ -112,7 +115,35 @@ where l.type_id = 1 -- words, not named entities or MWE's
                             print('Ģenitīvenim dīvains locījums', row.lemma, flags)
                         if flags.get('Skaitlis') == 'Daudzskaitlis':
                             del flags['Skaitlis']
-                            flags['Skaitlis_2'] = 'Daudzskaitlinieks'
+                            flags['Skaitlis 2'] = 'Daudzskaitlinieks'
+
+                    if type(flags.get('Kategorija')) is not list:
+                        if flags.get('Kategorija'):
+                            flags['Kategorija'] = [flags.get('Kategorija')]
+                        else:
+                            flags['Kategorija'] = []
+
+                    if row.paradigm_id in [33,34]:
+                        if 'Lietvārds' in set(flags['Kategorija']) and 'Atgriezeniskais lietvārds' in set(flags['Kategorija']):
+                            flags['Kategorija'].remove('Atgriezeniskais lietvārds')
+
+                    if row.paradigm_id == 50:
+                        if 'Nekārtns darbības vārds' in set(flags['Kategorija']) and 'Darbības vārds' in set(flags['Kategorija']):
+                            flags['Kategorija'].remove('Nekārtns darbības vārds')
+
+                    if row.paradigm_id in (13,30,40,41,42,43):
+                        for tips in ['Lokāmais ciešamās kārtas tagadnes divdabis (-ams, -ama, -āms, -āma)',
+                                    'Lokāmais darāmās kārtas tagadnes divdabis (-ošs, -oša)',
+                                    'Lokāmais ciešamās kārtas pagātnes divdabis (-ts, -ta)',
+                                    'Lokāmais darāmās kārtas pagātnes divdabis (-is, -usi, -ies, -usies)']:
+                            if tips in set(flags.get('Kategorija')):
+                                flags['Piezīmes'] = tips
+                                flags['Kategorija'] = 'Īpašības vārds'
+
+                    if len(flags['Kategorija']) == 1: 
+                        flags['Kategorija'] = flags['Kategorija'][0]
+                    if len(flags['Kategorija']) == 0: 
+                        del flags['Kategorija']
 
                     for key in dict(flags):   
                         value = flags[key]
@@ -140,9 +171,29 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     dati = dict(dati)
                     del dati['Pronunciation']
 
-                if gram and (gram.get('Citi') == 'Pārejošs' or gram.get('Citi') == 'Nepārejošs'):
-                    gram['Transitivitāte'] = gram.get('Citi')
-                    del gram['Citi']
+                if gram and gram.get('Citi'):
+                    if type(gram['Citi']) is not list:
+                        gram['Citi'] = [gram['Citi']]
+
+                    if 'Pārejošs' in set(gram['Citi']):
+                        gram['Transitivitāte'] = 'Pārejošs'
+                        gram['Citi'].remove('Pārejošs')
+                    if 'Nepārejošs' in set(gram['Citi']):
+                        gram['Transitivitāte'] = 'Nepārejošs'
+                        gram['Citi'].remove('Nepārejošs')
+                    if 'Vārds bez priedēkļa' in set(gram['Citi']):
+                        gram['Citi'].remove('Vārds bez priedēkļa')
+                    if 'Nelokāms vārds' in set(gram['Citi']) and row.paradigm_id in [12,49]:
+                        gram['Citi'].remove('Nelokāms vārds')
+                    if 'Noteiktā galotne' in set(gram['Citi']) and row.paradigm_id in [30,40]:
+                        gram['Citi'].remove('Noteiktā galotne')
+                    if 'Refleksīvs' in set(gram['Citi']) and row.paradigm_id in [18,19,20,46]:
+                        gram['Citi'].remove('Refleksīvs')
+
+                    if len(gram['Citi']) == 1: 
+                        gram['Citi'] = gram['Citi'][0]
+                    if len(gram['Citi']) == 0: 
+                        del gram['Citi']
 
                 if gram and gram.get('Lietojuma ierobežojumi'):
                     if isinstance(gram.get('Lietojuma ierobežojumi'), str):
