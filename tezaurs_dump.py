@@ -4,6 +4,7 @@ from db_config import db_connection_info
 import psycopg2
 from psycopg2.extras import NamedTupleCursor
 import json
+from collections import Counter
 
 connection = None
 def db_connect():
@@ -22,6 +23,8 @@ def db_connect():
             password = db_connection_info["password"],
         )
 
+attribute_stats = Counter()
+
 def query(sql, parameters):
     global connection
     cursor = connection.cursor(cursor_factory=NamedTupleCursor) 
@@ -32,6 +35,7 @@ def query(sql, parameters):
 
 def fetch_lexemes():
     global connection
+    global attribute_stats
     cursor = connection.cursor(cursor_factory=NamedTupleCursor) 
     sql = """
 select l.id as lexeme_id, e.id as entry_id, e.human_id, p.legacy_id as paradigm_id, l.data, stem1, stem2, stem3, lemma
@@ -222,6 +226,9 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 if not gram or len(dati) != 1:
                     print('Interesting data: %s' % (row.data, ))
                 lexeme['attributes'] = gram
+
+                for attribute in gram:
+                    attribute_stats[attribute] += 1
             yield lexeme
             if altstem2 or altstem3:
                 if altstem2:
@@ -236,8 +243,17 @@ def dump_lexemes(filename):
             f.write(json.dumps(lexeme, ensure_ascii=False))
             f.write('\n')
 
+def dump_attribute_stats(filename):
+    global attribute_stats
+    with open(filename, 'w') as f:
+        for attribute, count in attribute_stats.items():
+            print(attribute, count)
+            f.write('%s\t%s\n'%(attribute, count))
+
 db_connect()
 
-dump_lexemes('tezaurs_lexemes.json')
+filename = 'tezaurs_lexemes.json'
+dump_lexemes(filename)
+dump_attribute_stats('attributes.txt')
 
-print('Done!')
+print(f'Done! Output written to {filename}')
