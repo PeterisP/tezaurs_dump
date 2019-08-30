@@ -113,14 +113,17 @@ where l.type_id = 1 -- words, not named entities or MWE's
                             del flags['Locīšanas īpatnības']
                         else:
                             print('Ģenitīvenim dīvainas "Locīšanas īpatnības"', row.lemma, dati)
+
                         if flags.get('Citi') == 'Nelokāms vārds':
+                            del flags['Citi']
+                        elif flags.get('Citi') == ['Nelokāms vārds', 'Vietvārds']:
                             del flags['Citi']
                         else:
                             print('Ģenitīvenim dīvaini "Citi"', row.lemma, dati)
+
                         if flags.get('Locījums') == 'Ģenitīvs':
                             del flags['Locījums']
-                        else:
-                            print('Ģenitīvenim dīvains locījums', row.lemma, flags)
+
                         if flags.get('Skaitlis') == 'Daudzskaitlis':
                             del flags['Skaitlis']
                             flags['Skaitlis 2'] = 'Daudzskaitlinieks'
@@ -172,12 +175,12 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     gram.update(flags)
                     del gram['Flags']
 
-                if dati.get('Pronunciation'):
+                if dati.get('Pronunciations'):
                     if not gram:
                         gram = {}
-                    gram['Pronunciation'] = dati['Pronunciation']
+                    gram['Pronunciations'] = dati['Pronunciations']
                     dati = dict(dati)
-                    del dati['Pronunciation']
+                    del dati['Pronunciations']
 
                 if gram and gram.get('Citi'):
                     if type(gram['Citi']) is not list:
@@ -207,12 +210,12 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     if isinstance(gram.get('Lietojuma ierobežojumi'), str):
                         gram['Lietojuma ierobežojumi'] = [gram.get('Lietojuma ierobežojumi')]
                     for i in gram['Lietojuma ierobežojumi']:
-                        if i in ['Sarunvaloda', 'Vēsturisks', 'Novecojis', 'Nevēlams', 'Žargonvārds', 'Apvidvārds', 'Neaktuāls', 'Īsziņās', 'Neliterārs', 'Vulgārisms', 'Barbarisms', 'Bērnu valoda', 'Biblisms']:
+                        if i in ['Sarunvaloda', 'Vēsturisks', 'Novecojis', 'Nevēlams', 'Žargonvārds', 'Apvidvārds', 'Neaktuāls', 'Īsziņās', 'Neliterārs', 'Vulgārisms', 'Barbarisms', 'Bērnu valoda', 'Biblisms', 'Slengs']:
                             gram['Lietojums'] = i
                         elif i in ['Poētiska stilistiskā nokrāsa', 'Vienkāršrunas stilistiskā nokrāsa', 'Nievājoša ekspresīvā nokrāsa', 'Sirsnīga emocionālā nokrāsa', 'Ironiska ekspresīvā nokrāsa', 'Folkloras valodai raksturīga stilistiskā nokrāsa', 'Humoristiska ekspresīvā nokrāsa', 'Pārnestā nozīmē']:
                             gram['Stils'] = i
                         else:
-                            print("Nesaprasti lietojuma ierobežojumi: '%s'" % (i,))
+                            print(f"Nesaprasti lietojuma ierobežojumi: '{i}'")
                     del gram['Lietojuma ierobežojumi']
 
                 if gram and gram.get('Lietojuma biežums'):
@@ -228,7 +231,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     del gram['Darbības vārda prefikss']
 
                 if not gram or len(dati) != 1:
-                    print('Interesting data: %s' % (row.data, ))
+                    print(f'Interesting data: {dati} / {row.data}')
                 lexeme['attributes'] = gram
 
                 for attribute in gram:
