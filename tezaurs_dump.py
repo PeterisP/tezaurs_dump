@@ -7,38 +7,42 @@ import json
 from collections import Counter
 
 connection = None
+attribute_stats = Counter()
+
+
 def db_connect():
     global connection
 
-    if db_connection_info is None or db_connection_info["host"] is None or len(db_connection_info["host"])==0:
+    if db_connection_info is None or db_connection_info["host"] is None or len(db_connection_info["host"]) == 0:
         print("Postgres connection error: connection information must be supplied in db_config")
         raise Exception("Postgres connection error: connection information must be supplied in <conn_info>")
 
     print('Connecting to database %s' % (db_connection_info["dbname"],))
     connection = psycopg2.connect(
-            host = db_connection_info["host"],
-            port = db_connection_info["port"],
-            dbname = db_connection_info["dbname"],
-            user = db_connection_info["user"],
-            password = db_connection_info["password"],
+            host=db_connection_info["host"],
+            port=db_connection_info["port"],
+            dbname=db_connection_info["dbname"],
+            user=db_connection_info["user"],
+            password=db_connection_info["password"],
         )
 
-attribute_stats = Counter()
 
 def query(sql, parameters):
     global connection
-    cursor = connection.cursor(cursor_factory=NamedTupleCursor) 
+    cursor = connection.cursor(cursor_factory=NamedTupleCursor)
     cursor.execute(sql, parameters)
     r = cursor.fetchall()
     cursor.close()
     return r
 
+
 def fetch_lexemes():
     global connection
     global attribute_stats
-    cursor = connection.cursor(cursor_factory=NamedTupleCursor) 
+    cursor = connection.cursor(cursor_factory=NamedTupleCursor)
     sql = """
-select l.id as lexeme_id, e.id as entry_id, e.human_id, p.legacy_id as paradigm_id, l.data, stem1, stem2, stem3, lemma
+select l.id as lexeme_id, e.id as entry_id, e.human_id,
+  p.legacy_id as paradigm_id, l.data, stem1, stem2, stem3, lemma
 from tezaurs.lexemes l
 join tezaurs.entries e on l.entry_id = e.id
 join tezaurs.paradigms p on l.paradigm_id = p.id
@@ -55,21 +59,21 @@ where l.type_id = 1 -- words, not named entities or MWE's
             if not row.paradigm_id:
                 continue
             if row.lemma in ['būt']:
-                continue # Hardcoded exceptions
+                continue  # Hardcoded exceptions
 
             lexeme = {
-                'lexeme_id' : row.lexeme_id,
-                'entry_id'  : row.entry_id,
-                'human_id'  : row.human_id,
-                'paradigm'  : row.paradigm_id,
-                'lemma'     : row.lemma
+                'lexeme_id': row.lexeme_id,
+                'entry_id': row.entry_id,
+                'human_id': row.human_id,
+                'paradigm': row.paradigm_id,
+                'lemma': row.lemma
             }
             altstem2 = None
             altstem3 = None
             if row.stem1:
                 stem = row.stem1
                 if stem.startswith('{') and stem.endswith('}'):
-                    stem = stem[1:-1] # noņemam {}
+                    stem = stem[1:-1]  # noņemam {}
                 lexeme['stem1'] = stem
             if row.stem2:
                 if ',' in row.stem2:
@@ -79,7 +83,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 else:
                     stem = row.stem2
                     if stem.startswith('{') and stem.endswith('}'):
-                        stem = stem[1:-1] # noņemam {}
+                        stem = stem[1:-1]  # noņemam {}
                 lexeme['stem2'] = stem
             if row.stem3:
                 if ',' in row.stem3:
@@ -88,7 +92,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 else:
                     stem = row.stem3
                     if stem.startswith('{') and stem.endswith('}'):
-                        stem = stem[1:-1] # noņemam {}
+                        stem = stem[1:-1]  # noņemam {}
                 lexeme['stem3'] = stem
 
             if row.data:
@@ -99,7 +103,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     if 'Vārda daļa' in str(flags.get('Kategorija')):
                         continue
 
-                    for key in dict(flags):   
+                    for key in dict(flags):
                         value = flags[key]
                         if type(value) is list and len(value) == 1:
                             flags[key] = value[0]
@@ -127,7 +131,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                         else:
                             flags['Kategorija'] = []
 
-                    if row.paradigm_id in [33,34]:
+                    if row.paradigm_id in [33, 34]:
                         if 'Lietvārds' in set(flags['Kategorija']) and 'Atgriezeniskais lietvārds' in set(flags['Kategorija']):
                             flags['Kategorija'].remove('Atgriezeniskais lietvārds')
 
@@ -135,21 +139,21 @@ where l.type_id = 1 -- words, not named entities or MWE's
                         if 'Nekārtns darbības vārds' in set(flags['Kategorija']) and 'Darbības vārds' in set(flags['Kategorija']):
                             flags['Kategorija'].remove('Nekārtns darbības vārds')
 
-                    if row.paradigm_id in (13,30,40,41,42,43):
+                    if row.paradigm_id in (13, 30, 40, 41, 42, 43):
                         for tips in ['Lokāmais ciešamās kārtas tagadnes divdabis (-ams, -ama, -āms, -āma)',
-                                    'Lokāmais darāmās kārtas tagadnes divdabis (-ošs, -oša)',
-                                    'Lokāmais ciešamās kārtas pagātnes divdabis (-ts, -ta)',
-                                    'Lokāmais darāmās kārtas pagātnes divdabis (-is, -usi, -ies, -usies)']:
+                                     'Lokāmais darāmās kārtas tagadnes divdabis (-ošs, -oša)',
+                                     'Lokāmais ciešamās kārtas pagātnes divdabis (-ts, -ta)',
+                                     'Lokāmais darāmās kārtas pagātnes divdabis (-is, -usi, -ies, -usies)']:
                             if tips in set(flags.get('Kategorija')):
                                 flags['Piezīmes'] = tips
                                 flags['Kategorija'] = 'Īpašības vārds'
 
-                    if len(flags['Kategorija']) == 1: 
+                    if len(flags['Kategorija']) == 1:
                         flags['Kategorija'] = flags['Kategorija'][0]
-                    if len(flags['Kategorija']) == 0: 
+                    if len(flags['Kategorija']) == 0:
                         del flags['Kategorija']
 
-                    for key in dict(flags):   
+                    for key in dict(flags):
                         value = flags[key]
                         if key == 'Dzimte' and type(value) is not list and value.endswith(' dzimte'):
                             flags[key] = value[:-7]
@@ -163,10 +167,10 @@ where l.type_id = 1 -- words, not named entities or MWE's
                             print(value, row.lemma, flags)
 
                     if flags.get('Skaitlis'):
-                        del flags['Skaitlis'] # Nav precīza informācija, konfliktē ar analizatora prasībām
+                        del flags['Skaitlis']  # Nav precīza informācija, konfliktē ar analizatora prasībām
                     gram = dict(gram)
                     gram.update(flags)
-                    del gram['Flags']                    
+                    del gram['Flags']
 
                 if dati.get('Pronunciation'):
                     if not gram:
@@ -187,16 +191,16 @@ where l.type_id = 1 -- words, not named entities or MWE's
                         gram['Citi'].remove('Nepārejošs')
                     if 'Vārds bez priedēkļa' in set(gram['Citi']):
                         gram['Citi'].remove('Vārds bez priedēkļa')
-                    if 'Nelokāms vārds' in set(gram['Citi']) and row.paradigm_id in [12,49]:
+                    if 'Nelokāms vārds' in set(gram['Citi']) and row.paradigm_id in [12, 49]:
                         gram['Citi'].remove('Nelokāms vārds')
-                    if 'Noteiktā galotne' in set(gram['Citi']) and row.paradigm_id in [30,40]:
+                    if 'Noteiktā galotne' in set(gram['Citi']) and row.paradigm_id in [30, 40]:
                         gram['Citi'].remove('Noteiktā galotne')
-                    if 'Refleksīvs' in set(gram['Citi']) and row.paradigm_id in [18,19,20,46]:
+                    if 'Refleksīvs' in set(gram['Citi']) and row.paradigm_id in [18, 19, 20, 46]:
                         gram['Citi'].remove('Refleksīvs')
 
-                    if len(gram['Citi']) == 1: 
+                    if len(gram['Citi']) == 1:
                         gram['Citi'] = gram['Citi'][0]
-                    if len(gram['Citi']) == 0: 
+                    if len(gram['Citi']) == 0:
                         del gram['Citi']
 
                 if gram and gram.get('Lietojuma ierobežojumi'):
@@ -204,7 +208,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                         gram['Lietojuma ierobežojumi'] = [gram.get('Lietojuma ierobežojumi')]
                     for i in gram['Lietojuma ierobežojumi']:
                         if i in ['Sarunvaloda', 'Vēsturisks', 'Novecojis', 'Nevēlams', 'Žargonvārds', 'Apvidvārds', 'Neaktuāls', 'Īsziņās', 'Neliterārs', 'Vulgārisms', 'Barbarisms', 'Bērnu valoda', 'Biblisms']:
-                            gram['Lietojums'] = i        
+                            gram['Lietojums'] = i
                         elif i in ['Poētiska stilistiskā nokrāsa', 'Vienkāršrunas stilistiskā nokrāsa', 'Nievājoša ekspresīvā nokrāsa', 'Sirsnīga emocionālā nokrāsa', 'Ironiska ekspresīvā nokrāsa', 'Folkloras valodai raksturīga stilistiskā nokrāsa', 'Humoristiska ekspresīvā nokrāsa', 'Pārnestā nozīmē']:
                             gram['Stils'] = i
                         else:
@@ -237,18 +241,21 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     lexeme['stem3'] = altstem3
                 yield lexeme
 
+
 def dump_lexemes(filename):
     with open(filename, 'w') as f:
-        for lexeme in fetch_lexemes():            
+        for lexeme in fetch_lexemes():
             f.write(json.dumps(lexeme, ensure_ascii=False))
             f.write('\n')
+
 
 def dump_attribute_stats(filename):
     global attribute_stats
     with open(filename, 'w') as f:
         for attribute, count in attribute_stats.items():
             print(attribute, count)
-            f.write('%s\t%s\n'%(attribute, count))
+            f.write(f'{attribute}\t{count}\n')
+
 
 db_connect()
 
