@@ -138,9 +138,36 @@ where l.type_id = 1 -- words, not named entities or MWE's
                         if 'Lietvārds' in set(flags['Kategorija']) and 'Atgriezeniskais lietvārds' in set(flags['Kategorija']):
                             flags['Kategorija'].remove('Atgriezeniskais lietvārds')
 
+                    if row.paradigm_id == 26:
+                        if 'Prievārds' in set(flags['Kategorija']) and 'Postpozitīvs prievārds' in set(flags['Kategorija']):
+                            flags['Kategorija'].remove('Postpozitīvs prievārds')
+                            flags['Novietojums'] = 'Pēc'
+
+                    if row.paradigm_id == 36:
+                        if 'Vārds svešvalodā' in set(flags['Kategorija']) and 'Saīsinājums' in set(flags['Kategorija']):
+                            print(f'Saīsinājums svešvalodā 36 {row.lemma}')
+                            flags['Kategorija'].remove('Vārds svešvalodā')
+                            flags['Piezīmes'] = 'Vārds svešvalodā'
+
+                    if row.paradigm_id == 39:
+                        if 'Vārds svešvalodā' in set(flags['Kategorija']) and 'Saīsinājums' in set(flags['Kategorija']):
+                            lexeme['paradigm'] = 36  # FIXME - šis ir dirty, tas būtu Laumas galā jārisina
+                            print(f'Saīsinājums svešvalodā 39 {row.lemma}')
+                            flags['Kategorija'].remove('Vārds svešvalodā')
+                            flags['Piezīmes'] = 'Vārds svešvalodā'
+
                     if row.paradigm_id == 50:
                         if 'Nekārtns darbības vārds' in set(flags['Kategorija']) and 'Darbības vārds' in set(flags['Kategorija']):
                             flags['Kategorija'].remove('Nekārtns darbības vārds')
+
+                    if row.paradigm_id in [15, 18]:
+                        if 'Nekārtns darbības vārds' in set(flags['Kategorija']) and 'Darbības vārds' in set(flags['Kategorija']):
+                            flags['Kategorija'].remove('Nekārtns darbības vārds')
+                            flags['Konjugācija'] = 'Nekārtns'
+
+                    if row.paradigm_id == 30:
+                        if 'Lietvārds' in set(flags['Kategorija']):
+                            flags['Kategorija'].remove('Lietvārds')
 
                     if row.paradigm_id in (13, 30, 40, 41, 42, 43):
                         for tips in ['Lokāmais ciešamās kārtas tagadnes divdabis (-ams, -ama, -āms, -āma)',
