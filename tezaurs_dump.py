@@ -17,13 +17,15 @@ def db_connect():
         print("Postgres connection error: connection information must be supplied in db_config")
         raise Exception("Postgres connection error: connection information must be supplied in <conn_info>")
 
-    print('Connecting to database %s' % (db_connection_info["dbname"],))
+    print('Connecting to database %s' % (db_connection_info['dbname'],))
+    schema = db_connection_info['schema'] or 'tezaurs'
     connection = psycopg2.connect(
-            host=db_connection_info["host"],
-            port=db_connection_info["port"],
-            dbname=db_connection_info["dbname"],
-            user=db_connection_info["user"],
-            password=db_connection_info["password"],
+            host=db_connection_info['host'],
+            port=db_connection_info['port'],
+            dbname=db_connection_info['dbname'],
+            user=db_connection_info['user'],
+            password=db_connection_info['password'],
+            options=f'-c search_path={schema}',
         )
 
 
@@ -43,9 +45,9 @@ def fetch_lexemes():
     sql = """
 select l.id as lexeme_id, e.id as entry_id, e.human_id,
   p.legacy_id as paradigm_id, l.data, stem1, stem2, stem3, lemma
-from tezaurs.lexemes l
-join tezaurs.entries e on l.entry_id = e.id
-join tezaurs.paradigms p on l.paradigm_id = p.id
+from lexemes l
+join entries e on l.entry_id = e.id
+join paradigms p on l.paradigm_id = p.id
 where l.type_id = 1 -- words, not named entities or MWE's
 """
 # TODO - filtrs uz e.release_id lai ņemtu svaigāko relīzi nevis visas
@@ -116,7 +118,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
 
                         if flags.get('Citi') == 'Nelokāms vārds':
                             del flags['Citi']
-                        elif flags.get('Citi') == ['Nelokāms vārds', 'Vietvārds']:
+                        elif flags.get('Citi') == ['Nelokāms vārds', 'Vietvārds']: #FIXME - kāpēc vietvārdu neatstāj?
                             del flags['Citi']
                         else:
                             print('Ģenitīvenim dīvaini "Citi"', row.lemma, dati)
@@ -143,7 +145,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                             flags['Kategorija'].remove('Postpozitīvs prievārds')
                             flags['Novietojums'] = 'Pēc'
 
-                    if row.paradigm_id == 36:
+                    if row.paradigm_id == 36: # FIXME - šos Lauma labošot
                         if 'Vārds svešvalodā' in set(flags['Kategorija']) and 'Saīsinājums' in set(flags['Kategorija']):
                             print(f'Saīsinājums svešvalodā 36 {row.lemma}')
                             flags['Kategorija'].remove('Vārds svešvalodā')
