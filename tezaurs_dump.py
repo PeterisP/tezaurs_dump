@@ -110,25 +110,10 @@ where l.type_id = 1 -- words, not named entities or MWE's
                         if type(value) is list and len(value) == 1:
                             flags[key] = value[0]
 
-                    if flags.get('Kategorija') == 'Ģenitīvenis':
-                        if flags.get('Locīšanas īpatnības') == 'Sastingusi forma':
-                            del flags['Locīšanas īpatnības']
-                        else:
-                            print('Ģenitīvenim dīvainas "Locīšanas īpatnības"', row.lemma, dati)
-
-                        if flags.get('Citi') == 'Nelokāms vārds':
-                            del flags['Citi']
-                        elif flags.get('Citi') == ['Nelokāms vārds', 'Vietvārds']: #FIXME - kāpēc vietvārdu neatstāj?
-                            del flags['Citi']
-                        else:
-                            print('Ģenitīvenim dīvaini "Citi"', row.lemma, dati)
-
-                        if flags.get('Locījums') == 'Ģenitīvs':
-                            del flags['Locījums']
-
-                        if flags.get('Skaitlis') == 'Daudzskaitlis':
-                            del flags['Skaitlis']
-                            flags['Skaitlis 2'] = 'Daudzskaitlinieks'
+                    # if flags.get('Kategorija') == 'Ģenitīvenis':
+                    #     if flags.get('Skaitlis') == 'Daudzskaitlis':
+                    #         del flags['Skaitlis']
+                    #         flags['Skaitlis 2'] = 'Daudzskaitlinieks'
 
                     if type(flags.get('Kategorija')) is not list:
                         if flags.get('Kategorija'):
@@ -136,128 +121,53 @@ where l.type_id = 1 -- words, not named entities or MWE's
                         else:
                             flags['Kategorija'] = []
 
-                    if row.paradigm_id in [33, 34]:
-                        if 'Lietvārds' in set(flags['Kategorija']) and 'Atgriezeniskais lietvārds' in set(flags['Kategorija']):
-                            flags['Kategorija'].remove('Atgriezeniskais lietvārds')
+                    # if row.paradigm_id == 36: # FIXME - šos Lauma labošot
+                    #     if 'Vārds svešvalodā' in set(flags['Kategorija']) and 'Saīsinājums' in set(flags['Kategorija']):
+                    #         print(f'Saīsinājums svešvalodā 36 {row.lemma}')
+                    #         flags['Kategorija'].remove('Vārds svešvalodā')
+                    #         flags['Piezīmes'] = 'Vārds svešvalodā'
 
-                    if row.paradigm_id == 26:
-                        if 'Prievārds' in set(flags['Kategorija']) and 'Postpozitīvs prievārds' in set(flags['Kategorija']):
-                            flags['Kategorija'].remove('Postpozitīvs prievārds')
-                            flags['Novietojums'] = 'Pēc'
-
-                    if row.paradigm_id == 36: # FIXME - šos Lauma labošot
-                        if 'Vārds svešvalodā' in set(flags['Kategorija']) and 'Saīsinājums' in set(flags['Kategorija']):
-                            print(f'Saīsinājums svešvalodā 36 {row.lemma}')
-                            flags['Kategorija'].remove('Vārds svešvalodā')
-                            flags['Piezīmes'] = 'Vārds svešvalodā'
-
-                    if row.paradigm_id == 39:
-                        if 'Vārds svešvalodā' in set(flags['Kategorija']) and 'Saīsinājums' in set(flags['Kategorija']):
-                            lexeme['paradigm'] = 36  # FIXME - šis ir dirty, tas būtu Laumas galā jārisina
-                            print(f'Saīsinājums svešvalodā 39 {row.lemma}')
-                            flags['Kategorija'].remove('Vārds svešvalodā')
-                            flags['Piezīmes'] = 'Vārds svešvalodā'
-
-                    if row.paradigm_id == 50:
-                        if 'Nekārtns darbības vārds' in set(flags['Kategorija']) and 'Darbības vārds' in set(flags['Kategorija']):
-                            flags['Kategorija'].remove('Nekārtns darbības vārds')
-
-                    if row.paradigm_id in [15, 18]:
-                        if 'Nekārtns darbības vārds' in set(flags['Kategorija']) and 'Darbības vārds' in set(flags['Kategorija']):
-                            flags['Kategorija'].remove('Nekārtns darbības vārds')
-                            flags['Konjugācija'] = 'Nekārtns'
+                    # if row.paradigm_id == 39:
+                    #     if 'Vārds svešvalodā' in set(flags['Kategorija']) and 'Saīsinājums' in set(flags['Kategorija']):
+                    #         lexeme['paradigm'] = 36  # FIXME - šis ir dirty, tas būtu Laumas galā jārisina
+                    #         print(f'Saīsinājums svešvalodā 39 {row.lemma}')
+                    #         flags['Kategorija'].remove('Vārds svešvalodā')
+                    #         flags['Piezīmes'] = 'Vārds svešvalodā'
 
                     if row.paradigm_id == 30:
                         if 'Lietvārds' in set(flags['Kategorija']):
                             flags['Kategorija'].remove('Lietvārds')
-
-                    if row.paradigm_id in (13, 30, 40, 41, 42, 43):
-                        for tips in ['Lokāmais ciešamās kārtas tagadnes divdabis (-ams, -ama, -āms, -āma)',
-                                     'Lokāmais darāmās kārtas tagadnes divdabis (-ošs, -oša)',
-                                     'Lokāmais ciešamās kārtas pagātnes divdabis (-ts, -ta)',
-                                     'Lokāmais darāmās kārtas pagātnes divdabis (-is, -usi, -ies, -usies)']:
-                            if tips in set(flags.get('Kategorija')):
-                                flags['Piezīmes'] = tips
-                                flags['Kategorija'] = 'Īpašības vārds'
 
                     if len(flags['Kategorija']) == 1:
                         flags['Kategorija'] = flags['Kategorija'][0]
                     if len(flags['Kategorija']) == 0:
                         del flags['Kategorija']
 
-                    for key in dict(flags):
-                        value = flags[key]
-                        if key == 'Dzimte' and type(value) is not list and value.endswith(' dzimte'):
-                            flags[key] = value[:-7]
-                            value = flags[key]
-                        # if key == 'Skaitlis':
-                        #     if value == 'Vienskaitlis':
-                        #         del flags[key]
-                        #     else:
-                        #         print(value, row.lemma, flags)
-                        if key == 'Locījums':
-                            print(value, row.lemma, flags)
+                    if flags.get('Dzimte') == 'Sieviešu dzimte' and row.paradigm_id in [7, 9, 11, 31, 34, 35, 40, 41, 44]:
+                        del flags['Dzimte']
 
-                    if flags.get('Skaitlis'):
-                        del flags['Skaitlis']  # Nav precīza informācija, konfliktē ar analizatora prasībām
+                    if flags.get('Dzimte') == 'Vīriešu dzimte' and row.paradigm_id in [1, 2, 3, 4, 5, 6, 8, 10, 30, 48]:
+                        del flags['Dzimte']
+
+                    if row.paradigm_id in [12, 49] and flags.get('Dzimte') in ['Sieviešu dzimte', 'Vīriešu dzimte']:
+                        flags['Dzimte'] = flags.get('Dzimte')[:-7]  # noņemam nost " dzimte"
+
+                    if row.paradigm_id == 11 and flags.get('Dzimte') == 'Vīriešu dzimte':
+                        flags['Dzimte'] = flags.get('Dzimte')[:-7]  # noņemam nost " dzimte"
+
+                    # for key in dict(flags):
+                    #     value = flags[key]
+                    #     if key == 'Dzimte' and type(value) is not list and value.endswith(' dzimte'):
+                    #         flags[key] = value[:-7]
+                    #         value = flags[key]
+                    #     if key == 'Locījums':
+                    #         print(value, row.lemma, flags)
+
+                    # if flags.get('Skaitlis'):
+                    #     del flags['Skaitlis']  # Nav precīza informācija, konfliktē ar analizatora prasībām
                     gram = dict(gram)
                     gram.update(flags)
                     del gram['Flags']
-
-                if dati.get('Pronunciations'):
-                    if not gram:
-                        gram = {}
-                    gram['Pronunciations'] = dati['Pronunciations']
-                    dati = dict(dati)
-                    del dati['Pronunciations']
-
-                if gram and gram.get('Citi'):
-                    if type(gram['Citi']) is not list:
-                        gram['Citi'] = [gram['Citi']]
-
-                    if 'Pārejošs' in set(gram['Citi']):
-                        gram['Transitivitāte'] = 'Pārejošs'
-                        gram['Citi'].remove('Pārejošs')
-                    if 'Nepārejošs' in set(gram['Citi']):
-                        gram['Transitivitāte'] = 'Nepārejošs'
-                        gram['Citi'].remove('Nepārejošs')
-                    if 'Vārds bez priedēkļa' in set(gram['Citi']):
-                        gram['Citi'].remove('Vārds bez priedēkļa')
-                    if 'Nelokāms vārds' in set(gram['Citi']) and row.paradigm_id in [12, 49]:
-                        gram['Citi'].remove('Nelokāms vārds')
-                    if 'Noteiktā galotne' in set(gram['Citi']) and row.paradigm_id in [30, 40]:
-                        gram['Citi'].remove('Noteiktā galotne')
-                    if 'Refleksīvs' in set(gram['Citi']) and row.paradigm_id in [18, 19, 20, 46]:
-                        gram['Citi'].remove('Refleksīvs')
-
-                    if len(gram['Citi']) == 1:
-                        gram['Citi'] = gram['Citi'][0]
-                    if len(gram['Citi']) == 0:
-                        del gram['Citi']
-
-                if gram and gram.get('Lietojuma ierobežojumi'):
-                    if isinstance(gram.get('Lietojuma ierobežojumi'), str):
-                        gram['Lietojuma ierobežojumi'] = [gram.get('Lietojuma ierobežojumi')]
-                    for i in gram['Lietojuma ierobežojumi']:
-                        if i in ['Sarunvaloda', 'Vēsturisks', 'Novecojis', 'Nevēlams', 'Žargonvārds', 'Apvidvārds', 'Neaktuāls', 'Īsziņās', 'Neliterārs', 'Vulgārisms', 'Barbarisms', 'Bērnu valoda', 'Biblisms', 'Slengs']:
-                            gram['Lietojums'] = i
-                        elif i in ['Poētiska stilistiskā nokrāsa', 'Vienkāršrunas stilistiskā nokrāsa', 'Nievājoša ekspresīvā nokrāsa', 'Sirsnīga emocionālā nokrāsa', 'Ironiska ekspresīvā nokrāsa', 'Folkloras valodai raksturīga stilistiskā nokrāsa', 'Humoristiska ekspresīvā nokrāsa', 'Pārnestā nozīmē']:
-                            gram['Stils'] = i
-                        else:
-                            print(f"Nesaprasti lietojuma ierobežojumi: '{i}'")
-                    del gram['Lietojuma ierobežojumi']
-
-                if gram and gram.get('Lietojuma biežums'):
-                    gram['Biežums'] = gram.get('Lietojuma biežums')
-                    del gram['Lietojuma biežums']
-
-                if gram and gram.get('Joma'):
-                    gram['Nozare'] = gram.get('Joma')
-                    del gram['Joma']
-
-                if gram and gram.get('Darbības vārda prefikss'):
-                    gram['Priedēklis'] = gram.get('Darbības vārda prefikss')
-                    del gram['Darbības vārda prefikss']
 
                 if not gram or len(dati) != 1:
                     print(f'Interesting data: {dati} / {row.data}')
