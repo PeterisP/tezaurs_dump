@@ -110,11 +110,6 @@ where l.type_id = 1 -- words, not named entities or MWE's
                         if type(value) is list and len(value) == 1:
                             flags[key] = value[0]
 
-                    # if flags.get('Kategorija') == 'Ģenitīvenis':
-                    #     if flags.get('Skaitlis') == 'Daudzskaitlis':
-                    #         del flags['Skaitlis']
-                    #         flags['Skaitlis 2'] = 'Daudzskaitlinieks'
-
                     if type(flags.get('Kategorija')) is not list:
                         if flags.get('Kategorija'):
                             flags['Kategorija'] = [flags.get('Kategorija')]
@@ -134,34 +129,16 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     #         flags['Kategorija'].remove('Vārds svešvalodā')
                     #         flags['Piezīmes'] = 'Vārds svešvalodā'
 
-                    if row.paradigm_id == 30:
-                        if 'Lietvārds' in set(flags['Kategorija']):
-                            flags['Kategorija'].remove('Lietvārds')
-
                     if len(flags['Kategorija']) == 1:
                         flags['Kategorija'] = flags['Kategorija'][0]
                     if len(flags['Kategorija']) == 0:
                         del flags['Kategorija']
 
-                    if flags.get('Dzimte') == 'Sieviešu dzimte' and row.paradigm_id in [7, 9, 11, 31, 34, 35, 40, 41, 44]:
-                        del flags['Dzimte']
-
-                    if flags.get('Dzimte') == 'Vīriešu dzimte' and row.paradigm_id in [1, 2, 3, 4, 5, 6, 8, 10, 30, 48]:
-                        del flags['Dzimte']
-
-                    if row.paradigm_id in [12, 49] and flags.get('Dzimte') in ['Sieviešu dzimte', 'Vīriešu dzimte']:
-                        flags['Dzimte'] = flags.get('Dzimte')[:-7]  # noņemam nost " dzimte"
-
-                    if row.paradigm_id == 11 and flags.get('Dzimte') == 'Vīriešu dzimte':
-                        flags['Dzimte'] = flags.get('Dzimte')[:-7]  # noņemam nost " dzimte"
-
-                    # for key in dict(flags):
-                    #     value = flags[key]
-                    #     if key == 'Dzimte' and type(value) is not list and value.endswith(' dzimte'):
-                    #         flags[key] = value[:-7]
-                    #         value = flags[key]
-                    #     if key == 'Locījums':
-                    #         print(value, row.lemma, flags)
+                    for key in dict(flags):
+                        value = flags[key]
+                        if key in ['Lieto arī noteiktā formā/atvasinājumā', 'Bieži lieto noteiktā formā/atvasinājumā',
+                                   'Lieto tikai noteiktā formā/atvasinājumā', 'Lieto noteiktā formā/atvasinājumā']:
+                            print(row.lemma, row.paradigm_id, value, flags)
 
                     # if flags.get('Skaitlis'):
                     #     del flags['Skaitlis']  # Nav precīza informācija, konfliktē ar analizatora prasībām
