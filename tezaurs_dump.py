@@ -9,6 +9,8 @@ from collections import Counter
 connection = None
 attribute_stats = Counter()
 
+paradigms_with_multiple_stems = set([15, 18, 50])
+
 
 def db_connect():
     global connection
@@ -43,8 +45,8 @@ def fetch_lexemes():
     global attribute_stats
     cursor = connection.cursor(cursor_factory=NamedTupleCursor)
     sql = """
-select l.id as lexeme_id, e.id as entry_id, e.human_id,
-  p.legacy_id as paradigm_id, l.data, stem1, stem2, stem3, lemma
+select l.id as lexeme_id, e.id as entry_id, e.human_key,
+  p.legacy_no as paradigm_id, l.data, stem1, stem2, stem3, lemma
 from lexemes l
 join entries e on l.entry_id = e.id
 join paradigms p on l.paradigm_id = p.id
@@ -66,7 +68,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
             lexeme = {
                 'lexeme_id': row.lexeme_id,
                 'entry_id': row.entry_id,
-                'human_id': row.human_id,
+                'human_id': row.human_key,
                 'paradigm': row.paradigm_id,
                 'lemma': row.lemma
             }
@@ -77,7 +79,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 if stem.startswith('{') and stem.endswith('}'):
                     stem = stem[1:-1]  # noņemam {}
                 lexeme['stem1'] = stem
-            if row.stem2:
+            if row.paradigm_id in paradigms_with_multiple_stems and row.stem2:
                 if ',' in row.stem2:
                     stem = row.stem2.split(',', maxsplit=1)[0]
                     altstem2 = row.stem2.split(',', maxsplit=1)[1]
@@ -87,7 +89,7 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     if stem.startswith('{') and stem.endswith('}'):
                         stem = stem[1:-1]  # noņemam {}
                 lexeme['stem2'] = stem
-            if row.stem3:
+            if row.paradigm_id in paradigms_with_multiple_stems and row.stem3:
                 if ',' in row.stem3:
                     stem = row.stem3.split(',', maxsplit=1)[0]
                     altstem3 = row.stem3.split(',', maxsplit=1)[1]
@@ -99,6 +101,10 @@ where l.type_id = 1 -- words, not named entities or MWE's
 
             if row.data:
                 dati = row.data
+                for intentionaldiscard in ['ImportNotices', 'Pronunciations']:
+                    if dati.get(intentionaldiscard):
+                        del dati[intentionaldiscard]
+
                 gram = dati.get('Gram')
                 if gram and gram.get('Flags'):
                     flags = dict(gram.get('Flags'))
@@ -134,11 +140,11 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     if len(flags['Kategorija']) == 0:
                         del flags['Kategorija']
 
-                    for key in dict(flags):
-                        value = flags[key]
-                        if key in ['Lieto arī noteiktā formā/atvasinājumā', 'Bieži lieto noteiktā formā/atvasinājumā',
-                                   'Lieto tikai noteiktā formā/atvasinājumā', 'Lieto noteiktā formā/atvasinājumā']:
-                            print(row.lemma, row.paradigm_id, value, flags)
+                    # for key in dict(flags):
+                    #     value = flags[key]
+                    #     if key in ['Lieto arī noteiktā formā/atvasinājumā', 'Bieži lieto noteiktā formā/atvasinājumā',
+                    #                'Lieto tikai noteiktā formā/atvasinājumā', 'Lieto noteiktā formā/atvasinājumā']:
+                    #         print(row.lemma, row.paradigm_id, value, flags)
 
                     # if flags.get('Skaitlis'):
                     #     del flags['Skaitlis']  # Nav precīza informācija, konfliktē ar analizatora prasībām
@@ -146,12 +152,34 @@ where l.type_id = 1 -- words, not named entities or MWE's
                     gram.update(flags)
                     del gram['Flags']
 
+                if gram and gram.get('StructuralRestrictions'):
+                    sr = gram.get('StructuralRestrictions')
+                    saprasts = False
+                    if sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Tikai'):
+                        v = sr.get('Value')
+                        if v.get('Flags') and v.get('Flags').get('Skaitlis'):
+                            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and row.paradigm_id not in [19, 20]:
+                                gram['Skaitlis 2'] = 'Daudzskaitlinieks'
+                                saprasts = True
+                            if 'Vienskaitlis' in v.get('Flags').get('Skaitlis'):
+                                gram['Skaitlis 2'] = 'Vienskaitlinieks'
+                                saprasts = True
+                    if sr.get('Restriction') == 'Vispārīgais lietojuma biežums' and sr.get('Frequency') == 'Reti':
+                        gram['Lietojuma biežums'] = sr.get('Frequency')
+                        saprasts = True
+
+                    if not saprasts:
+                        print(sr)
+
                 if not gram or len(dati) != 1:
-                    print(f'Interesting data: {dati} / {row.data}')
+                    print(f'Interesting data for "{row.lemma}": {dati} / {row.data}')
+                    # Ja izdrukā dažas lemmas kā 'agrākā' utt, tad tas šķiet ok
+
                 lexeme['attributes'] = gram
 
-                for attribute in gram:
-                    attribute_stats[attribute] += 1
+                if gram:
+                    for attribute in gram:
+                        attribute_stats[attribute] += 1
             yield lexeme
             if altstem2 or altstem3:
                 if altstem2:
