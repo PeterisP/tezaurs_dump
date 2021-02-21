@@ -11,6 +11,7 @@ attribute_stats = Counter()
 
 paradigms_with_multiple_stems = set([15, 18, 50])
 
+debuglist = set()
 
 def db_connect():
     global connection
@@ -50,9 +51,9 @@ select l.id as lexeme_id, e.id as entry_id, e.human_key,
 from lexemes l
 join entries e on l.entry_id = e.id
 join paradigms p on l.paradigm_id = p.id
-where l.type_id = 1 -- words, not named entities or MWE's
+where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
 """
-# TODO - filtrs uz e.release_id lai ņemtu svaigāko relīzi nevis visas
+# TODO - filtrs uz e.release_id lai ņemtu svaigāko relīzi nevis visas. Relevants produkcijai
 
     cursor.execute(sql)
     while True:
@@ -64,6 +65,8 @@ where l.type_id = 1 -- words, not named entities or MWE's
                 continue
             if row.lemma in ['būt']:
                 continue  # Hardcoded exceptions
+            if debuglist and row.lemma not in debuglist:
+                continue
 
             lexeme = {
                 'lexeme_id': row.lexeme_id,
