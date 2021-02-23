@@ -11,7 +11,7 @@ attribute_stats = Counter()
 
 paradigms_with_multiple_stems = set([15, 18, 50])
 
-debuglist = set()
+debuglist = set([])
 
 def db_connect():
     global connection
@@ -65,12 +65,15 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                 continue
             if row.lemma in ['būt']:
                 continue  # Hardcoded exceptions
-            if debuglist and row.lemma not in debuglist:
-                continue
+            if debuglist:
+                if row.lemma in debuglist:
+                    print(row)
+                else:
+                    continue
 
             lexeme = {
                 'lexeme_id': row.lexeme_id,
-                'entry_id': row.entry_id,
+                'entry_id': row.entry_id,   
                 'human_id': row.human_key,
                 'paradigm': row.paradigm_id,
                 'lemma': row.lemma
@@ -167,12 +170,20 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                             if 'Vienskaitlis' in v.get('Flags').get('Skaitlis'):
                                 gram['Skaitlis 2'] = 'Vienskaitlinieks'
                                 saprasts = True
-                    if sr.get('Restriction') == 'Vispārīgais lietojuma biežums' and sr.get('Frequency') == 'Reti':
+                    if sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Parasti'):
+                        v = sr.get('Value')
+                        if v.get('Flags') and v.get('Flags').get('Skaitlis'):
+                            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and gram.get('Leksēmas pamatformas īpatnības') == 'Daudzskaitlis':
+                                gram['Skaitlis 2'] = 'Gandrīz daudzskaitlinieks'
+                                saprasts = True
+                    if sr.get('Restriction') == 'Vispārīgais lietojuma biežums' and sr.get('Frequency') in ['Reti', 'Pareti']:
                         gram['Lietojuma biežums'] = sr.get('Frequency')
                         saprasts = True
 
-                    if not saprasts:
-                        print(sr)
+                    if saprasts:
+                        del gram['StructuralRestrictions']
+                    else:
+                        print(f'Nesaprasts SR: {sr}')
 
                 if not gram or len(dati) != 1:
                     print(f'Interesting data for "{row.lemma}": {dati} / {row.data}')
