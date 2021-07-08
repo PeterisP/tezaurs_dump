@@ -162,6 +162,10 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                     sr = gram.get('StructuralRestrictions')
                     v = sr.get('Value')
                     saprasts = False
+                    if sr.get('Restriction') == 'Formā/atvasinājumā' and v.get('Flags') and v.get('Flags').get('Noliegums') == 'Jā' and (sr.get('Frequency') == 'Tikai' or not sr.get('Frequency')):
+                        gram['Noliegums'] = 'Jā'
+                        saprasts = True
+
                     if sr.get('Restriction') == 'Formā/atvasinājumā' and v.get('Flags') and v.get('Flags').get('Izteiksme') and 'Divdabis' in v.get('Flags').get('Izteiksme') and v.get('Flags').get('Divdabja veids'):
                         veids = v.get('Flags').get('Divdabja veids')
                         if veids == 'Lokāmais ciešamās kārtas tagadnes divdabis (-ams, -ama, -āms, -āma)':
@@ -212,7 +216,6 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                         gram['Lietojuma biežums'] = sr.get('Frequency')
                         saprasts = True
 
-
                     if saprasts:
                         # FIXME - varbūt daļu saprasto SR ir jāsaglabā kā leksiskā info?
                         del gram['StructuralRestrictions']
@@ -251,11 +254,11 @@ def dump_attribute_stats(filename):
             print(attribute, count)
             f.write(f'{attribute}\t{count}\n')
 
+if __name__ == "__main__":
+    db_connect()
 
-db_connect()
+    filename = 'tezaurs_lexemes.json'
+    dump_lexemes(filename)
+    dump_attribute_stats('attributes.txt')
 
-filename = 'tezaurs_lexemes.json'
-dump_lexemes(filename)
-dump_attribute_stats('attributes.txt')
-
-print(f'Done! Output written to {filename}')
+    print(f'Done! Output written to {filename}')
