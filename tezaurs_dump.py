@@ -41,6 +41,77 @@ def query(sql, parameters):
     return r
 
 
+def decode_sr(sr, paradigm_id):
+    if sr.get('AND'):
+        saprasts = True
+        newgram = dict()
+        for sub_sr in sr.get('AND'):
+            saprasts1, newgram1 = decode_sr(sub_sr , paradigm_id)
+            saprasts = saprasts and saprasts1
+            newgram = newgram | newgram1
+        return saprasts, newgram
+
+    v = sr.get('Value')
+    gram = dict()
+    saprasts = False
+    if sr.get('Restriction') == 'Formā/atvasinājumā' and v.get('Flags') and v.get('Flags').get('Noliegums') == 'Jā' and (sr.get('Frequency') == 'Tikai' or not sr.get('Frequency')):
+        gram['Noliegums'] = 'Jā'
+        saprasts = True
+
+    if sr.get('Restriction') == 'Formā/atvasinājumā' and v.get('Flags') and v.get('Flags').get('Izteiksme') and 'Divdabis' in v.get('Flags').get('Izteiksme') and v.get('Flags').get('Divdabja veids'):
+        veids = v.get('Flags').get('Divdabja veids')
+        if veids == 'Lokāmais ciešamās kārtas tagadnes divdabis (-ams, -ama, -āms, -āma)':
+            gram['Izteiksme'] = 'Divdabis'
+            gram['Lokāmība'] = 'Lokāms'
+            gram['Kārta'] = 'Ciešamā'
+            gram['Laiks'] = 'Tagadne'                    
+            saprasts = True
+        if veids == 'Lokāmais ciešamās kārtas pagātnes divdabis (-ts, -ta)':
+            gram['Izteiksme'] = 'Divdabis'
+            gram['Lokāmība'] = 'Lokāms'
+            gram['Kārta'] = 'Ciešamā'
+            gram['Laiks'] = 'Pagātne'  
+            saprasts = True
+        if veids == 'Lokāmais darāmās kārtas tagadnes divdabis (-ošs, -oša)':
+            gram['Izteiksme'] = 'Divdabis'
+            gram['Lokāmība'] = 'Lokāms'
+            gram['Kārta'] = 'Darāmā'
+            gram['Laiks'] = 'Tagadne'  
+            saprasts = True
+        if veids == 'Lokāmais darāmās kārtas pagātnes divdabis (-is, -usi, -ies, -usies)':
+            gram['Izteiksme'] = 'Divdabis'
+            gram['Lokāmība'] = 'Lokāms'
+            gram['Kārta'] = 'Darāmā'
+            gram['Laiks'] = 'Pagātne'  
+            saprasts = True
+
+    if not saprasts and sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Tikai'):
+        if v.get('Flags') and v.get('Flags').get('Skaitlis'):
+            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and paradigm_id not in [19, 20]:
+                gram['Skaitlis 2'] = 'Daudzskaitlinieks'
+                saprasts = True
+            if 'Vienskaitlis' in v.get('Flags').get('Skaitlis'):
+                gram['Skaitlis 2'] = 'Vienskaitlinieks'
+                saprasts = True
+    if not saprasts and sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Parasti'):
+        if v.get('Flags') and v.get('Flags').get('Skaitlis'):
+            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and gram.get('Leksēmas pamatformas īpatnības') == 'Daudzskaitlis':
+                gram['Skaitlis 2'] = 'Gandrīz daudzskaitlinieks'
+                saprasts = True
+            if 'Vienskaitlis' in v.get('Flags').get('Skaitlis'):
+                # Parasti vienskaitlis - bez sekām uz morfoloģiju
+                saprasts = True 
+        if v.get('Flags') and v.get('Flags').get('Persona') and v.get('Flags').get('Persona') == 'Trešā':
+            # Parasti trešā persona - bez sekām uz morfoloģiju
+                saprasts = True 
+    if not saprasts and (sr.get('Restriction') == 'Kopā ar' or sr.get('Restriction') == 'Teikumos / noteikta veida struktūrās'):
+        saprasts = True
+    if not saprasts and sr.get('Restriction') == 'Vispārīgais lietojuma biežums' and sr.get('Frequency') in ['Reti', 'Pareti', 'Retāk']:
+        gram['Lietojuma biežums'] = sr.get('Frequency')
+        saprasts = True
+    return saprasts, gram
+
+
 def fetch_lexemes():
     global connection
     global attribute_stats
@@ -54,6 +125,7 @@ join paradigms p on l.paradigm_id = p.id
 where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
 """
 # TODO - filtrs uz e.release_id lai ņemtu svaigāko relīzi nevis visas. Relevants produkcijai
+    nesaprastie = 0
 
     cursor.execute(sql)
     while True:
@@ -160,67 +232,15 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
 
                 if gram and gram.get('StructuralRestrictions'):
                     sr = gram.get('StructuralRestrictions')
-                    v = sr.get('Value')
-                    saprasts = False
-                    if sr.get('Restriction') == 'Formā/atvasinājumā' and v.get('Flags') and v.get('Flags').get('Noliegums') == 'Jā' and (sr.get('Frequency') == 'Tikai' or not sr.get('Frequency')):
-                        gram['Noliegums'] = 'Jā'
-                        saprasts = True
-
-                    if sr.get('Restriction') == 'Formā/atvasinājumā' and v.get('Flags') and v.get('Flags').get('Izteiksme') and 'Divdabis' in v.get('Flags').get('Izteiksme') and v.get('Flags').get('Divdabja veids'):
-                        veids = v.get('Flags').get('Divdabja veids')
-                        if veids == 'Lokāmais ciešamās kārtas tagadnes divdabis (-ams, -ama, -āms, -āma)':
-                            gram['Izteiksme'] = 'Divdabis'
-                            gram['Lokāmība'] = 'Lokāms'
-                            gram['Kārta'] = 'Ciešamā'
-                            gram['Laiks'] = 'Tagadne'                    
-                            saprasts = True
-                        if veids == 'Lokāmais ciešamās kārtas pagātnes divdabis (-ts, -ta)':
-                            gram['Izteiksme'] = 'Divdabis'
-                            gram['Lokāmība'] = 'Lokāms'
-                            gram['Kārta'] = 'Ciešamā'
-                            gram['Laiks'] = 'Pagātne'  
-                            saprasts = True
-                        if veids == 'Lokāmais darāmās kārtas tagadnes divdabis (-ošs, -oša)':
-                            gram['Izteiksme'] = 'Divdabis'
-                            gram['Lokāmība'] = 'Lokāms'
-                            gram['Kārta'] = 'Darāmā'
-                            gram['Laiks'] = 'Tagadne'  
-                            saprasts = True
-                        if veids == 'Lokāmais darāmās kārtas pagātnes divdabis (-is, -usi, -ies, -usies)':
-                            gram['Izteiksme'] = 'Divdabis'
-                            gram['Lokāmība'] = 'Lokāms'
-                            gram['Kārta'] = 'Darāmā'
-                            gram['Laiks'] = 'Pagātne'  
-                            saprasts = True
-
-                    if not saprasts and sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Tikai'):
-                        if v.get('Flags') and v.get('Flags').get('Skaitlis'):
-                            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and row.paradigm_id not in [19, 20]:
-                                gram['Skaitlis 2'] = 'Daudzskaitlinieks'
-                                saprasts = True
-                            if 'Vienskaitlis' in v.get('Flags').get('Skaitlis'):
-                                gram['Skaitlis 2'] = 'Vienskaitlinieks'
-                                saprasts = True
-                    if not saprasts and sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Parasti'):
-                        if v.get('Flags') and v.get('Flags').get('Skaitlis'):
-                            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and gram.get('Leksēmas pamatformas īpatnības') == 'Daudzskaitlis':
-                                gram['Skaitlis 2'] = 'Gandrīz daudzskaitlinieks'
-                                saprasts = True
-                            if 'Vienskaitlis' in v.get('Flags').get('Skaitlis'):
-                                # Parasti vienskaitlis - bez sekām uz morfoloģiju
-                                saprasts = True 
-                        if v.get('Flags') and v.get('Flags').get('Persona') and v.get('Flags').get('Persona') == 'Trešā':
-                            # Parasti trešā persona - bez sekām uz morfoloģiju
-                                saprasts = True 
-                    if not saprasts and sr.get('Restriction') == 'Vispārīgais lietojuma biežums' and sr.get('Frequency') in ['Reti', 'Pareti']:
-                        gram['Lietojuma biežums'] = sr.get('Frequency')
-                        saprasts = True
+                    saprasts, newgram = decode_sr(sr, row.paradigm_id)
+                    gram |= newgram
 
                     if saprasts:
                         # FIXME - varbūt daļu saprasto SR ir jāsaglabā kā leksiskā info?
                         del gram['StructuralRestrictions']
                     else:
                         print(f'Nesaprasts SR: {sr} {row.lemma}')
+                        nesaprastie += 1
 
                 if not gram or len(dati) != 1:
                     print(f'Interesting data for "{row.lemma}": {dati} / {row.data}')
@@ -238,6 +258,7 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                 if altstem3:
                     lexeme['stem3'] = altstem3
                 yield lexeme
+    print(f'Bija {nesaprastie} nesaprasti StructuralRestrictions')
 
 
 def dump_lexemes(filename):
