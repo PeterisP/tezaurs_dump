@@ -41,12 +41,12 @@ def query(sql, parameters):
     return r
 
 
-def decode_sr(sr, paradigm_id):
+def decode_sr(oldgram, sr, paradigm_id):
     if sr.get('AND'):
         saprasts = True
         newgram = dict()
         for sub_sr in sr.get('AND'):
-            saprasts1, newgram1 = decode_sr(sub_sr , paradigm_id)
+            saprasts1, newgram1 = decode_sr(oldgram, sub_sr , paradigm_id)
             saprasts = saprasts and saprasts1
             newgram = newgram | newgram1
         return saprasts, newgram
@@ -95,8 +95,10 @@ def decode_sr(sr, paradigm_id):
                 saprasts = True
     if not saprasts and sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Parasti'):
         if v.get('Flags') and v.get('Flags').get('Skaitlis'):
-            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and gram.get('Leksēmas pamatformas īpatnības') == 'Daudzskaitlis':
+            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and oldgram.get('Leksēmas pamatformas īpatnības') and 'Daudzskaitlis' in oldgram.get('Leksēmas pamatformas īpatnības'):
                 gram['Skaitlis 2'] = 'Gandrīz daudzskaitlinieks'
+                saprasts = True
+            elif 'Daudzskaitlis' in v.get('Flags').get('Skaitlis'):
                 saprasts = True
             if 'Vienskaitlis' in v.get('Flags').get('Skaitlis'):
                 # Parasti vienskaitlis - bez sekām uz morfoloģiju
@@ -232,7 +234,7 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
 
                 if gram and gram.get('StructuralRestrictions'):
                     sr = gram.get('StructuralRestrictions')
-                    saprasts, newgram = decode_sr(sr, row.paradigm_id)
+                    saprasts, newgram = decode_sr(gram, sr, row.paradigm_id)
                     gram |= newgram
 
                     if saprasts:
