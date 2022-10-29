@@ -5,6 +5,7 @@ import psycopg2
 from psycopg2.extras import NamedTupleCursor
 import json
 from collections import Counter
+from copy import deepcopy
 
 connection = None
 attribute_stats = Counter()
@@ -95,16 +96,19 @@ def decode_sr(oldgram, sr, paradigm_id):
                 saprasts = True
     if not saprasts and sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Parasti'):
         if v.get('Flags') and v.get('Flags').get('Skaitlis'):
-            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and oldgram.get('Leksēmas pamatformas īpatnības') and 'Daudzskaitlis' in oldgram.get('Leksēmas pamatformas īpatnības'):
-                gram['Skaitlis 2'] = 'Gandrīz daudzskaitlinieks'
-                saprasts = True
-            elif 'Daudzskaitlis' in v.get('Flags').get('Skaitlis'):
+            # if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and oldgram.get('Leksēmas pamatformas īpatnības') and 'Daudzskaitlis' in oldgram.get('Leksēmas pamatformas īpatnības'):
+            #     gram['Skaitlis 2'] = 'Gandrīz daudzskaitlinieks'
+            #     saprasts = True
+            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis'):
                 saprasts = True
             if 'Vienskaitlis' in v.get('Flags').get('Skaitlis'):
                 # Parasti vienskaitlis - bez sekām uz morfoloģiju
                 saprasts = True 
         if v.get('Flags') and v.get('Flags').get('Persona') and v.get('Flags').get('Persona') == 'Trešā':
             # Parasti trešā persona - bez sekām uz morfoloģiju
+                saprasts = True 
+        if v.get('Flags') and v.get('Flags').get('Noteiktība') and v.get('Flags').get('Noteiktība') == 'Noteiktā':
+            # Parasti noteiktā forma - bez sekām uz morfoloģiju
                 saprasts = True 
     if not saprasts and (sr.get('Restriction') == 'Kopā ar' or sr.get('Restriction') == 'Teikumos / noteikta veida struktūrās'):
         saprasts = True
@@ -180,7 +184,7 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                 lexeme['stem3'] = stem
 
             if row.data:
-                dati = row.data
+                dati = deepcopy(row.data)
                 for intentionaldiscard in ['ImportNotices', 'Pronunciations']:
                     if dati.get(intentionaldiscard):
                         del dati[intentionaldiscard]
@@ -244,7 +248,7 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                         print(f'Nesaprasts SR: {sr} {row.lemma}')
                         nesaprastie += 1
 
-                if not gram or len(dati) != 1:
+                if dati and (not gram or len(dati) != 1):
                     print(f'Interesting data for "{row.lemma}": {dati} / {row.data}')
                     # Ja izdrukā dažas lemmas kā 'agrākā' utt, tad tas šķiet ok
 
