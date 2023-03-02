@@ -12,7 +12,7 @@ attribute_stats = Counter()
 
 paradigms_with_multiple_stems = set([15, 18, 50])
 
-debuglist = set([])
+debuglist = set(['kā'])
 
 def db_connect():
     global connection
@@ -124,11 +124,15 @@ def fetch_lexemes():
     cursor = connection.cursor(cursor_factory=NamedTupleCursor)
     sql = """
 select l.id as lexeme_id, e.id as entry_id, e.human_key,
-  p.legacy_no as paradigm_id, l.data, stem1, stem2, stem3, lemma
+  p.legacy_no as paradigm_id, l.data, sense_flags, stem1, stem2, stem3, lemma
 from lexemes l
 join entries e on l.entry_id = e.id
 join paradigms p on l.paradigm_id = p.id
-where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
+left join (
+select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
+    from senses
+    where data->'Gram'->'Flags' is not null
+    group by entry_id) s on (s.entry_id = e.id and l.type_id not in (4,6))
 """
 # TODO - filtrs uz e.release_id lai ņemtu svaigāko relīzi nevis visas. Relevants produkcijai
     nesaprastie = 0
@@ -156,6 +160,8 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                 'paradigm': row.paradigm_id,
                 'lemma': row.lemma
             }
+
+            # Handling for alternate stems which result in multiple lexemes from single thesaurus lexeme
             altstem2 = None
             altstem3 = None
             if row.stem1:
@@ -183,8 +189,13 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                         stem = stem[1:-1]  # noņemam {}
                 lexeme['stem3'] = stem
 
-            if row.data:
-                dati = deepcopy(row.data)
+            alt_ssf = False # Multiple options for conjunction syntactic function
+
+            if row.data or row.sense_flags:
+                if row.data:
+                    dati = deepcopy(row.data)
+                else:
+                    dati = {}
                 for intentionaldiscard in ['ImportNotices', 'Pronunciations']:
                     if dati.get(intentionaldiscard):
                         del dati[intentionaldiscard]
@@ -248,15 +259,37 @@ where l.type_id in (1,4) -- words and derived_words, not named entities or MWE's
                         print(f'Nesaprasts SR: {sr} {row.lemma}')
                         nesaprastie += 1
 
+                ssf = set()
+                if gram and gram.get('Saikļa sintaktiskā funkcija'):
+                    ssf.add(gram.get('Saikļa sintaktiskā funkcija'))
+                if row.sense_flags:
+                    for sense_flag in row.sense_flags:
+                        if sense_flag.get('Saikļa sintaktiskā funkcija'):
+                            ssf.add(sense_flag.get('Saikļa sintaktiskā funkcija'))
+                if ssf:
+                    if not gram:
+                        gram = {}
+                    ssf = list(ssf)
+                    if len(ssf) == 1:
+                        ssf = ssf[0]
+                    else:
+                        alt_ssf = True
+                    gram['Saikļa sintaktiskā funkcija'] = ssf
+
                 if dati and (not gram or len(dati) != 1):
                     print(f'Interesting data for "{row.lemma}": {dati} / {row.data}')
                     # Ja izdrukā dažas lemmas kā 'agrākā' utt, tad tas šķiet ok
 
-                lexeme['attributes'] = gram
-
                 if gram:
+                    lexeme['attributes'] = gram
                     for attribute in gram:
                         attribute_stats[attribute] += 1
+
+            if alt_ssf:
+                lexeme['attributes']['Saikļa sintaktiskā funkcija'] = 'Pakārtojuma'
+                yield lexeme
+                lexeme['attributes']['Saikļa sintaktiskā funkcija'] = 'Sakārtojuma'
+
             yield lexeme
             if altstem2 or altstem3:
                 if altstem2:
@@ -287,5 +320,8 @@ if __name__ == "__main__":
     filename = 'tezaurs_lexemes.json'
     dump_lexemes(filename)
     dump_attribute_stats('attributes.txt')
+    if not debuglist:
+        filename = f'/Users/pet/Documents/NLP/morphology/src/main/resources/{filename}'
+        dump_lexemes(filename)
 
     print(f'Done! Output written to {filename}')
