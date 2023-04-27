@@ -12,7 +12,8 @@ attribute_stats = Counter()
 
 paradigms_with_multiple_stems = set([15, 18, 50])
 
-debuglist = set(['kā'])
+debuglist = set(['spēt', 'iet'])
+debuglist = set()
 
 def db_connect():
     global connection
@@ -118,6 +119,37 @@ def decode_sr(oldgram, sr, paradigm_id):
     return saprasts, gram
 
 
+def collect_flag_options(gram, row, flag_name, default_value=None):
+    flag_options = set()
+    if gram and gram.get(flag_name):
+        gram_flags = gram.get(flag_name)
+        if isinstance(gram_flags, str):
+            flag_options.add(gram_flags)
+        else: # We assume that this is a list....
+            flag_options.update(gram_flags)                
+    if row.sense_flags:
+        if default_value and not flag_options:
+            flag_options.add(default_value)
+        for sense_flag in row.sense_flags:
+            sense_flag_options = sense_flag.get(flag_name)
+            if sense_flag_options:
+                if isinstance(sense_flag_options, str):
+                    flag_options.add(sense_flag_options)
+                else:
+                    flag_options.update(sense_flag_options)
+    if flag_options:
+        if not gram:
+            gram = {}
+        flag_options = list(flag_options)
+        if len(flag_options) == 1:
+            gram[flag_name] = flag_options[0]
+            return gram, False
+        else:
+            gram[flag_name] = flag_options
+            return gram, True
+    return gram, False
+
+
 def fetch_lexemes():
     global connection
     global attribute_stats
@@ -190,6 +222,7 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                 lexeme['stem3'] = stem
 
             alt_ssf = False # Multiple options for conjunction syntactic function
+            alt_verb_types = False # Multiple options for alternate verb types
 
             if row.data or row.sense_flags:
                 if row.data:
@@ -259,22 +292,9 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                         print(f'Nesaprasts SR: {sr} {row.lemma}')
                         nesaprastie += 1
 
-                ssf = set()
-                if gram and gram.get('Saikļa sintaktiskā funkcija'):
-                    ssf.add(gram.get('Saikļa sintaktiskā funkcija'))
-                if row.sense_flags:
-                    for sense_flag in row.sense_flags:
-                        if sense_flag.get('Saikļa sintaktiskā funkcija'):
-                            ssf.add(sense_flag.get('Saikļa sintaktiskā funkcija'))
-                if ssf:
-                    if not gram:
-                        gram = {}
-                    ssf = list(ssf)
-                    if len(ssf) == 1:
-                        ssf = ssf[0]
-                    else:
-                        alt_ssf = True
-                    gram['Saikļa sintaktiskā funkcija'] = ssf
+                gram, alt_ssf = collect_flag_options(gram, row, 'Saikļa sintaktiskā funkcija')
+
+                gram, alt_verb_types = collect_flag_options(gram, row, 'Darbības vārda tips', 'Patstāvīgs darbības vārds')
 
                 if dati and (not gram or len(dati) != 1):
                     print(f'Interesting data for "{row.lemma}": {dati} / {row.data}')
@@ -290,7 +310,13 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                 yield lexeme
                 lexeme['attributes']['Saikļa sintaktiskā funkcija'] = 'Sakārtojuma'
 
-            yield lexeme
+            if alt_verb_types:
+                for verb_type in gram['Darbības vārda tips'] :
+                    lexeme['attributes']['Darbības vārda tips'] = verb_type
+                    yield lexeme
+            else:
+                yield lexeme  # Šis principā ir defaultais vienīgais galvenais yieldotājs normālajam gadījumam
+
             if altstem2 or altstem3:
                 if altstem2:
                     lexeme['stem2'] = altstem2
