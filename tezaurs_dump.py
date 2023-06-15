@@ -11,8 +11,9 @@ connection = None
 attribute_stats = Counter()
 
 paradigms_with_multiple_stems = set([15, 18, 50])
+verb_paradigms = set([15, 16, 17, 18, 19, 20, 45, 46, 50])
 
-debuglist = set(['spēt', 'iet'])
+debuglist = set(['simts','rakt','neizciešams'])
 debuglist = set()
 
 def db_connect():
@@ -119,17 +120,19 @@ def decode_sr(oldgram, sr, paradigm_id):
     return saprasts, gram
 
 
+# Savāc visus karodziņa variantus, kas ir pa nozīmēm
 def collect_flag_options(gram, row, flag_name, default_value=None):
     flag_options = set()
+    if default_value:
+        flag_options.add(default_value)
     if gram and gram.get(flag_name):
         gram_flags = gram.get(flag_name)
         if isinstance(gram_flags, str):
             flag_options.add(gram_flags)
         else: # We assume that this is a list....
-            flag_options.update(gram_flags)                
+            flag_options.update(gram_flags)   
+
     if row.sense_flags:
-        if default_value and not flag_options:
-            flag_options.add(default_value)
         for sense_flag in row.sense_flags:
             sense_flag_options = sense_flag.get(flag_name)
             if sense_flag_options:
@@ -137,6 +140,7 @@ def collect_flag_options(gram, row, flag_name, default_value=None):
                     flag_options.add(sense_flag_options)
                 else:
                     flag_options.update(sense_flag_options)
+
     if flag_options:
         if not gram:
             gram = {}
@@ -294,7 +298,10 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
 
                 gram, alt_ssf = collect_flag_options(gram, row, 'Saikļa sintaktiskā funkcija')
 
-                gram, alt_verb_types = collect_flag_options(gram, row, 'Darbības vārda tips', 'Patstāvīgs darbības vārds')
+                default_verb_flag = None # mēs gribam lai defaultā vērtība ir tikai darbības vārdiem, un pārējiem ir none
+                if (row.paradigm_id in verb_paradigms) or (gram and gram.get('Vārdšķira') == 'Darbības vārds'):
+                    default_verb_flag = 'Patstāvīgs darbības vārds'
+                gram, alt_verb_types = collect_flag_options(gram, row, 'Darbības vārda tips', default_verb_flag)
 
                 if dati and (not gram or len(dati) != 1):
                     print(f'Interesting data for "{row.lemma}": {dati} / {row.data}')
