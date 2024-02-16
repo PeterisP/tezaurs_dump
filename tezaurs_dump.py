@@ -159,7 +159,7 @@ def fetch_lexemes():
     global connection
     global attribute_stats
     cursor = connection.cursor()
-    sql = """
+    sql_lexemes = """
 select l.id as lexeme_id, e.id as entry_id, e.human_key,
   p.legacy_no as paradigm_id, l.data, sense_flags, stem1, stem2, stem3, lemma
 from lexemes l
@@ -172,9 +172,19 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
     group by entry_id) s on (s.entry_id = e.id and l.type_id not in (4,6))
 """
 # TODO - filtrs uz e.release_id lai ņemtu svaigāko relīzi nevis visas. Relevants produkcijai
+
+    sql_wordforms = """
+select l.id as lexeme_id, e.id as entry_id, e.human_key, lemma,
+  p.legacy_no as paradigm_id, l.data as l_data, w.data as w_data, w.form, w.replaces_base
+from wordforms w
+join lexemes l on w.lexeme_id = l.id
+join entries e on l.entry_id = e.id
+join paradigms p on l.paradigm_id = p.id
+"""
+
     nesaprastie = 0
 
-    cursor.execute(sql)
+    cursor.execute(sql_lexemes)
     while True:
         rows = cursor.fetchmany(1000)
         if not rows:
@@ -333,6 +343,54 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                 yield lexeme
     print(f'Bija {nesaprastie} nesaprasti StructuralRestrictions')
 
+    cursor.execute(sql_wordforms)
+#select lexeme_id,entry_id,human_key, paradigm_id, l.data, w.data, w.form, w.replaces_base ....
+
+    rows = cursor.fetchall()
+    for row in rows:
+        if debuglist:
+            if row.lemma in debuglist:
+                print(row)
+            else:
+                continue
+
+        lexeme = {
+            'lexeme_id': row.lexeme_id,
+            'entry_id': row.entry_id,   
+            'human_id': row.human_key,
+            'paradigm': 29, # Hardcoded paradigma
+            'lemma': row.lemma,
+            'stem1': row.form
+        }
+        
+        flags = {}
+        if row.l_data:
+            dati = deepcopy(row.l_data)
+            gram = dati.get('Gram')
+            if gram and gram.get('Flags'):
+                flags.update(gram.get('Flags'))
+
+        if row.w_data:
+            dati = deepcopy(row.w_data)
+            gram = dati.get('Gram')
+            if gram and gram.get('Flags'):
+                flags.update(gram.get('Flags'))
+
+        if not row.replaces_base:
+            flags['Papildforma'] = 'Jā'
+
+        if flags:
+            if flags.get('Locījums'):
+                locījumi = flags.get('Locījums')
+                if isinstance(locījumi, list):
+                    if len(locījumi) == 1:
+                        flags['Locījums'] = locījumi[0]
+                    else:
+                        print(f'Wordforms vajadzētu būt tikai vienam locījumam, bet {stem1} ir {str(locījumi)}')
+            lexeme['attributes'] = flags
+            for attribute in flags:
+                attribute_stats[attribute] += 1
+        yield lexeme
 
 def dump_lexemes(filename):
     with open(filename, 'w') as f:
