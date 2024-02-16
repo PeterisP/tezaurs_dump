@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 from db_config import db_connection_info
 
-import psycopg2
-from psycopg2.extras import NamedTupleCursor
+import psycopg
+import psycopg.rows
 import json
 from collections import Counter
 from copy import deepcopy
@@ -25,19 +25,20 @@ def db_connect():
 
     print('Connecting to database %s' % (db_connection_info['dbname'],))
     schema = db_connection_info['schema'] or 'tezaurs'
-    connection = psycopg2.connect(
+    connection = psycopg.connect(
             host=db_connection_info['host'],
             port=db_connection_info['port'],
             dbname=db_connection_info['dbname'],
             user=db_connection_info['user'],
             password=db_connection_info['password'],
             options=f'-c search_path={schema}',
+            row_factory=psycopg.rows.namedtuple_row
         )
 
 
 def query(sql, parameters):
     global connection
-    cursor = connection.cursor(cursor_factory=NamedTupleCursor)
+    cursor = connection.cursor()
     cursor.execute(sql, parameters)
     r = cursor.fetchall()
     cursor.close()
@@ -157,7 +158,7 @@ def collect_flag_options(gram, row, flag_name, default_value=None):
 def fetch_lexemes():
     global connection
     global attribute_stats
-    cursor = connection.cursor(cursor_factory=NamedTupleCursor)
+    cursor = connection.cursor()
     sql = """
 select l.id as lexeme_id, e.id as entry_id, e.human_key,
   p.legacy_no as paradigm_id, l.data, sense_flags, stem1, stem2, stem3, lemma
