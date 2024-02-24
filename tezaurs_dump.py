@@ -13,8 +13,8 @@ attribute_stats = Counter()
 paradigms_with_multiple_stems = set([15, 18, 50])
 verb_paradigms = set([15, 16, 17, 18, 19, 20, 45, 46, 50])
 
-debuglist = set(['simts','rakt','neizciešams'])
 debuglist = set()
+# debuglist = set(['liegt'])
 
 def db_connect():
     global connection
@@ -319,9 +319,12 @@ join paradigms p on l.paradigm_id = p.id
                     # Ja izdrukā dažas lemmas kā 'agrākā' utt, tad tas šķiet ok
 
                 if gram:
+                    for attribute in gram:                        
+                        attribute_stats[attribute] += 1                
+                    # If there are multiple values, flatten them with separator |
+                    gram = {k: "|".join(v) if isinstance(v, list) and k != 'Darbības vārda tips' else v for k, v in gram.items()}
                     lexeme['attributes'] = gram
-                    for attribute in gram:
-                        attribute_stats[attribute] += 1
+                        
 
             if alt_ssf:
                 lexeme['attributes']['Saikļa sintaktiskā funkcija'] = 'Pakārtojuma'
