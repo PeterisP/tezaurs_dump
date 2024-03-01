@@ -13,19 +13,23 @@ attribute_stats = Counter()
 debuglist = set()
 # debuglist = set(['liegt'])
 
-def db_connect():
+def db_connect(latgalian = False):
     global connection
 
     if db_connection_info is None or db_connection_info["host"] is None or len(db_connection_info["host"]) == 0:
         print("Postgres connection error: connection information must be supplied in db_config")
         raise Exception("Postgres connection error: connection information must be supplied in <conn_info>")
 
-    print('Connecting to database %s' % (db_connection_info['dbname'],))
     schema = db_connection_info['schema'] or 'tezaurs'
+    dbname = db_connection_info['dbname']
+    if latgalian:
+        dbname = db_connection_info['dbname_ltg']
+
+    print(f'Connecting to database {dbname}')
     connection = psycopg.connect(
             host=db_connection_info['host'],
             port=db_connection_info['port'],
-            dbname=db_connection_info['dbname'],
+            dbname=dbname,
             user=db_connection_info['user'],
             password=db_connection_info['password'],
             options=f'-c search_path={schema}',
@@ -42,12 +46,12 @@ def query(sql, parameters):
     return r
 
 
-def decode_sr(oldgram, sr, paradigm_id):
+def decode_sr(oldgram, sr):
     if sr.get('AND'):
         saprasts = True
         newgram = dict()
         for sub_sr in sr.get('AND'):
-            saprasts1, newgram1 = decode_sr(oldgram, sub_sr , paradigm_id)
+            saprasts1, newgram1 = decode_sr(oldgram, sub_sr)
             saprasts = saprasts and saprasts1
             newgram = newgram | newgram1
         return saprasts, newgram
@@ -88,7 +92,7 @@ def decode_sr(oldgram, sr, paradigm_id):
 
     if not saprasts and sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Tikai'):
         if v.get('Flags') and v.get('Flags').get('Skaitlis'):
-            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis') and paradigm_id not in [19, 20]:
+            if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis'):
                 gram['Skaitlis 2'] = 'Daudzskaitlinieks'
                 saprasts = True
             if 'Vienskaitlis' in v.get('Flags').get('Skaitlis'):
@@ -158,7 +162,7 @@ def fetch_lexemes():
     cursor = connection.cursor()
     sql_lexemes = """
 select l.id as lexeme_id, e.id as entry_id, e.human_key,
-  p.legacy_no as paradigm_id, p.human_key as paradigm_name, l.data, sense_flags, 
+  p.human_key as paradigm_name, l.data, sense_flags, 
   cast(p.data->>'Stems' as integer) as stem_count, stem1, stem2, stem3, lemma
 from lexemes l
 join entries e on l.entry_id = e.id
@@ -188,7 +192,7 @@ join paradigms p on l.paradigm_id = p.id
         if not rows:
             break
         for row in rows:
-            if not row.paradigm_id:
+            if not row.paradigm_name:
                 continue
             if row.lemma in ['būt']:
                 continue  # Hardcoded exceptions
@@ -202,7 +206,7 @@ join paradigms p on l.paradigm_id = p.id
                 'lexeme_id': row.lexeme_id,
                 'entry_id': row.entry_id,   
                 'human_id': row.human_key,
-                'paradigm': row.paradigm_id,
+                'paradigm_name': row.paradigm_name,
                 'lemma': row.lemma
             }
 
@@ -295,7 +299,7 @@ join paradigms p on l.paradigm_id = p.id
 
                 if gram and gram.get('StructuralRestrictions'):
                     sr = gram.get('StructuralRestrictions')
-                    saprasts, newgram = decode_sr(gram, sr, row.paradigm_id)
+                    saprasts, newgram = decode_sr(gram, sr)
                     gram |= newgram
 
                     if saprasts:
@@ -408,13 +412,21 @@ def dump_attribute_stats(filename):
             f.write(f'{attribute}\t{count}\n')
 
 if __name__ == "__main__":
-    db_connect()
+    # db_connect()
+    # filename = 'tezaurs_lexemes.json'
+    # dump_lexemes(filename)
+    # dump_attribute_stats('attributes.txt')
+    # if not debuglist:
+    #     filename = f'/Users/pet/Documents/NLP/morphology/src/main/resources/{filename}'
+    #     dump_lexemes(filename)
+    # print(f'Done! Output written to {filename}')
 
-    filename = 'tezaurs_lexemes.json'
+    db_connect(latgalian=True)
+    filename = 'tezaurs_latgalian.json'
     dump_lexemes(filename)
     dump_attribute_stats('attributes.txt')
     if not debuglist:
         filename = f'/Users/pet/Documents/NLP/morphology/src/main/resources/{filename}'
         dump_lexemes(filename)
-
     print(f'Done! Output written to {filename}')
+
