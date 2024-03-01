@@ -10,9 +10,6 @@ from copy import deepcopy
 connection = None
 attribute_stats = Counter()
 
-paradigms_with_multiple_stems = set([15, 18, 50])
-verb_paradigms = set([15, 16, 17, 18, 19, 20, 45, 46, 50])
-
 debuglist = set()
 # debuglist = set(['liegt'])
 
@@ -161,7 +158,8 @@ def fetch_lexemes():
     cursor = connection.cursor()
     sql_lexemes = """
 select l.id as lexeme_id, e.id as entry_id, e.human_key,
-  p.legacy_no as paradigm_id, l.data, sense_flags, stem1, stem2, stem3, lemma
+  p.legacy_no as paradigm_id, p.human_key as paradigm_name, l.data, sense_flags, 
+  cast(p.data->>'Stems' as integer) as stem_count, stem1, stem2, stem3, lemma
 from lexemes l
 join entries e on l.entry_id = e.id
 join paradigms p on l.paradigm_id = p.id
@@ -216,7 +214,7 @@ join paradigms p on l.paradigm_id = p.id
                 if stem.startswith('{') and stem.endswith('}'):
                     stem = stem[1:-1]  # noņemam {}
                 lexeme['stem1'] = stem
-            if row.paradigm_id in paradigms_with_multiple_stems and row.stem2:
+            if row.stem_count>1 and row.stem2:
                 if ',' in row.stem2:
                     stem = row.stem2.split(',', maxsplit=1)[0]
                     altstem2 = row.stem2.split(',', maxsplit=1)[1]
@@ -226,7 +224,7 @@ join paradigms p on l.paradigm_id = p.id
                     if stem.startswith('{') and stem.endswith('}'):
                         stem = stem[1:-1]  # noņemam {}
                 lexeme['stem2'] = stem
-            if row.paradigm_id in paradigms_with_multiple_stems and row.stem3:
+            if row.stem_count>2 and row.stem3:
                 if ',' in row.stem3:
                     stem = row.stem3.split(',', maxsplit=1)[0]
                     altstem3 = row.stem3.split(',', maxsplit=1)[1]
@@ -310,7 +308,7 @@ join paradigms p on l.paradigm_id = p.id
                 gram, alt_ssf = collect_flag_options(gram, row, 'Saikļa sintaktiskā funkcija')
 
                 default_verb_flag = None # mēs gribam lai defaultā vērtība ir tikai darbības vārdiem, un pārējiem ir none
-                if (row.paradigm_id in verb_paradigms) or (gram and gram.get('Vārdšķira') == 'Darbības vārds'):
+                if row.paradigm_name.startswith('verb') or (gram and gram.get('Vārdšķira') == 'Darbības vārds'):
                     default_verb_flag = 'Patstāvīgs darbības vārds'
                 gram, alt_verb_types = collect_flag_options(gram, row, 'Darbības vārda tips', default_verb_flag)
 
@@ -361,7 +359,7 @@ join paradigms p on l.paradigm_id = p.id
             'lexeme_id': row.lexeme_id,
             'entry_id': row.entry_id,   
             'human_id': row.human_key,
-            'paradigm': 29, # Hardcoded paradigma
+            'paradigm_name': 'hardcoded',
             'lemma': row.lemma,
             'stem1': row.form
         }
