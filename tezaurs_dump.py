@@ -398,7 +398,7 @@ join paradigms p on l.paradigm_id = p.id
         yield lexeme
 
 def dump_lexemes(filename):
-    with open(filename, 'w') as f:
+    with open(filename, 'w', encoding='utf-8') as f:
         for lexeme in fetch_lexemes():
             f.write(json.dumps(lexeme, ensure_ascii=False))
             f.write('\n')
@@ -406,7 +406,7 @@ def dump_lexemes(filename):
 
 def dump_attribute_stats(filename):
     global attribute_stats
-    with open(filename, 'w') as f:
+    with open(filename, 'w', encoding='utf-8') as f:
         for attribute, count in attribute_stats.items():
             print(attribute, count)
             f.write(f'{attribute}\t{count}\n')
@@ -425,7 +425,7 @@ if __name__ == "__main__":
     filename = 'tezaurs_latgalian.json'
     dump_lexemes(filename)
     dump_attribute_stats('attributes.txt')
-    if not debuglist:
+    if db_connection_info.get('Peteris') and not debuglist:
         filename = f'/Users/pet/Documents/NLP/morphology/src/main/resources/{filename}'
         dump_lexemes(filename)
     print(f'Done! Output written to {filename}')
