@@ -391,7 +391,7 @@ join paradigms p on l.paradigm_id = p.id
                     if len(locījumi) == 1:
                         flags['Locījums'] = locījumi[0]
                     else:
-                        print(f'Wordforms vajadzētu būt tikai vienam locījumam, bet {stem1} ir {str(locījumi)}')
+                        print(f'Wordforms vajadzētu būt tikai vienam locījumam, bet {row.form} ir {str(locījumi)}')
             lexeme['attributes'] = flags
             for attribute in flags:
                 attribute_stats[attribute] += 1
