@@ -412,14 +412,14 @@ def dump_attribute_stats(filename):
             f.write(f'{attribute}\t{count}\n')
 
 if __name__ == "__main__":
-    # db_connect()
-    # filename = 'tezaurs_lexemes.json'
-    # dump_lexemes(filename)
-    # dump_attribute_stats('attributes.txt')
-    # if not debuglist:
-    #     filename = f'/Users/pet/Documents/NLP/morphology/src/main/resources/{filename}'
-    #     dump_lexemes(filename)
-    # print(f'Done! Output written to {filename}')
+    db_connect()
+    filename = 'tezaurs_lexemes.json'
+    dump_lexemes(filename)
+    dump_attribute_stats('attributes.txt')
+    if db_connection_info.get('Peteris') and not debuglist:
+        filename = f'/Users/pet/Documents/NLP/morphology/src/main/resources/{filename}'
+        dump_lexemes(filename)
+    print(f'Done! Output written to {filename}')
 
     db_connect(latgalian=True)
     filename = 'tezaurs_latgalian.json'
