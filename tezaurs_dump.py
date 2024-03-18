@@ -163,7 +163,7 @@ def fetch_lexemes():
     sql_lexemes = """
 select l.id as lexeme_id, e.id as entry_id, e.human_key,
   p.human_key as paradigm_name, l.data, sense_flags, 
-  cast(p.data->>'Stems' as integer) as stem_count, stem1, stem2, stem3, lemma
+  p.stems as stem_count, stem1, stem2, stem3, lemma
 from lexemes l
 join entries e on l.entry_id = e.id
 join paradigms p on l.paradigm_id = p.id
