@@ -11,7 +11,7 @@ connection = None
 attribute_stats = Counter()
 
 debuglist = set()
-# debuglist = set(['liegt'])
+# debuglist = set(['es'])
 
 def db_connect(latgalian = False):
     global connection
@@ -46,12 +46,12 @@ def query(sql, parameters):
     return r
 
 
-def decode_sr(oldgram, sr):
+def decode_sr(oldgram, sr, paradigm_name):
     if sr.get('AND'):
         saprasts = True
         newgram = dict()
         for sub_sr in sr.get('AND'):
-            saprasts1, newgram1 = decode_sr(oldgram, sub_sr)
+            saprasts1, newgram1 = decode_sr(oldgram, sub_sr, paradigm_name)
             saprasts = saprasts and saprasts1
             newgram = newgram | newgram1
         return saprasts, newgram
@@ -71,26 +71,26 @@ def decode_sr(oldgram, sr):
             gram['Kārta'] = 'Ciešamā'
             gram['Laiks'] = 'Tagadne'                    
             saprasts = True
-        if veids == 'Lokāmais ciešamās kārtas pagātnes divdabis (-ts, -ta)':
+        elif veids == 'Lokāmais ciešamās kārtas pagātnes divdabis (-ts, -ta)':
             gram['Izteiksme'] = 'Divdabis'
             gram['Lokāmība'] = 'Lokāms'
             gram['Kārta'] = 'Ciešamā'
             gram['Laiks'] = 'Pagātne'  
             saprasts = True
-        if veids == 'Lokāmais darāmās kārtas tagadnes divdabis (-ošs, -oša)':
+        elif veids == 'Lokāmais darāmās kārtas tagadnes divdabis (-ošs, -oša)':
             gram['Izteiksme'] = 'Divdabis'
             gram['Lokāmība'] = 'Lokāms'
             gram['Kārta'] = 'Darāmā'
             gram['Laiks'] = 'Tagadne'  
             saprasts = True
-        if veids == 'Lokāmais darāmās kārtas pagātnes divdabis (-is, -usi, -ies, -usies)':
+        elif veids == 'Lokāmais darāmās kārtas pagātnes divdabis (-is, -usi, -ies, -usies)':
             gram['Izteiksme'] = 'Divdabis'
             gram['Lokāmība'] = 'Lokāms'
             gram['Kārta'] = 'Darāmā'
             gram['Laiks'] = 'Pagātne'  
             saprasts = True
 
-    if not saprasts and sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Tikai'):
+    if not saprasts and sr.get('Restriction') == 'Formā/atvasinājumā' and (not sr.get('Frequency') or sr.get('Frequency') == 'Tikai') and not paradigm_name.startswith('verb'):
         if v.get('Flags') and v.get('Flags').get('Skaitlis'):
             if 'Daudzskaitlis' in v.get('Flags').get('Skaitlis'):
                 gram['Skaitlis 2'] = 'Daudzskaitlinieks'
@@ -177,7 +177,7 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
 
     sql_wordforms = """
 select l.id as lexeme_id, e.id as entry_id, e.human_key, lemma,
-  p.legacy_no as paradigm_id, l.data as l_data, w.data as w_data, w.form, w.replaces_base
+  p.legacy_no as paradigm_id, l.data as l_data, w.data as w_data, p.data as p_data, w.form, w.replaces_base
 from wordforms w
 join lexemes l on w.lexeme_id = l.id
 join entries e on l.entry_id = e.id
@@ -267,6 +267,45 @@ join paradigms p on l.paradigm_id = p.id
                         else:
                             flags['Kategorija'] = []
 
+                    if 'Pirmā' == flags.get('Persona'):
+                        flags['Persona'] = 1
+                    if 'Otrā' == flags.get('Persona'):
+                        flags['Persona'] = 2
+                    if 'Trešā' == flags.get('Persona'):
+                        flags['Persona'] = 3
+
+                    if flags.get('Divdabja veids'):
+                        # Šis pārklājas ar structural restrictions apstrādes kodu - jo kaut kādu iemeslu dēļ "vecajiem" ieimportētajiem vārdiem šī info ir zem structuralrestrictions, bet jaunajiem ar roku liktajiem pa taisno karodziņos
+                        veids = flags.get('Divdabja veids')
+                        if veids == 'Lokāmais ciešamās kārtas tagadnes divdabis (-ams, -ama, -āms, -āma)':
+                            gram['Izteiksme'] = 'Divdabis'
+                            gram['Lokāmība'] = 'Lokāms'
+                            gram['Kārta'] = 'Ciešamā'
+                            gram['Laiks'] = 'Tagadne'                    
+                            del flags['Divdabja veids']
+                        elif veids == 'Lokāmais ciešamās kārtas pagātnes divdabis (-ts, -ta)':
+                            gram['Izteiksme'] = 'Divdabis'
+                            gram['Lokāmība'] = 'Lokāms'
+                            gram['Kārta'] = 'Ciešamā'
+                            gram['Laiks'] = 'Pagātne'  
+                            del flags['Divdabja veids']
+                        elif veids == 'Lokāmais darāmās kārtas tagadnes divdabis (-ošs, -oša)':
+                            gram['Izteiksme'] = 'Divdabis'
+                            gram['Lokāmība'] = 'Lokāms'
+                            gram['Kārta'] = 'Darāmā'
+                            gram['Laiks'] = 'Tagadne'  
+                            del flags['Divdabja veids']
+                        elif veids == 'Lokāmais darāmās kārtas pagātnes divdabis (-is, -usi, -ies, -usies)':
+                            gram['Izteiksme'] = 'Divdabis'
+                            gram['Lokāmība'] = 'Lokāms'
+                            gram['Kārta'] = 'Darāmā'
+                            gram['Laiks'] = 'Pagātne'  
+                            del flags['Divdabja veids']
+                        else:
+                            print(f'Nesaprasts divdabja veids {veids}')
+
+
+
                     # if row.paradigm_id == 36: # FIXME - šos Lauma labošot
                     #     if 'Vārds svešvalodā' in set(flags['Kategorija']) and 'Saīsinājums' in set(flags['Kategorija']):
                     #         print(f'Saīsinājums svešvalodā 36 {row.lemma}')
@@ -299,12 +338,14 @@ join paradigms p on l.paradigm_id = p.id
 
                 if gram and gram.get('StructuralRestrictions'):
                     sr = gram.get('StructuralRestrictions')
-                    saprasts, newgram = decode_sr(gram, sr)
+                    saprasts, newgram = decode_sr(gram, sr, row.paradigm_name)
                     gram |= newgram
 
                     if saprasts:
                         # FIXME - varbūt daļu saprasto SR ir jāsaglabā kā leksiskā info?
                         del gram['StructuralRestrictions']
+                        if gram.get('Divdabja veids'):
+                            del gram['Divdabja veids']
                     else:
                         print(f'Nesaprasts SR: {sr} {row.lemma}')
                         nesaprastie += 1
@@ -349,7 +390,7 @@ join paradigms p on l.paradigm_id = p.id
     print(f'Bija {nesaprastie} nesaprasti StructuralRestrictions')
 
     cursor.execute(sql_wordforms)
-#select lexeme_id,entry_id,human_key, paradigm_id, l.data, w.data, w.form, w.replaces_base ....
+#select lexeme_id,entry_id,human_key, paradigm_id, l.data, w.data, p.data, w.form, w.replaces_base ....
 
     rows = cursor.fetchall()
     for row in rows:
@@ -369,6 +410,10 @@ join paradigms p on l.paradigm_id = p.id
         }
         
         flags = {}
+        if row.p_data:
+            dati = deepcopy(row.p_data)
+            flags.update(dati)
+
         if row.l_data:
             dati = deepcopy(row.l_data)
             gram = dati.get('Gram')
@@ -385,6 +430,18 @@ join paradigms p on l.paradigm_id = p.id
             flags['Papildforma'] = 'Jā'
 
         if flags:
+            for key in dict(flags):
+                value = flags[key]
+                if type(value) is list and len(value) == 1:
+                    flags[key] = value[0]
+
+            if 'Pirmā' == flags.get('Persona'):
+                flags['Persona'] = 1
+            if 'Otrā' == flags.get('Persona'):
+                flags['Persona'] = 2
+            if 'Trešā' == flags.get('Persona'):
+                flags['Persona'] = 3
+
             if flags.get('Locījums'):
                 locījumi = flags.get('Locījums')
                 if isinstance(locījumi, list):
