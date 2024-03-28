@@ -11,7 +11,7 @@ connection = None
 attribute_stats = Counter()
 
 debuglist = set()
-# debuglist = set(['kas'])
+# debuglist = set(['nekas'])
 
 def db_connect(latgalian = False):
     global connection
@@ -177,8 +177,8 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
 
     sql_wordforms = """
 select l.id as lexeme_id, e.id as entry_id, e.human_key, lemma,
-  p.legacy_no as paradigm_id, l.data as l_data, w.data as w_data, p.data as p_data, sense_flags,
-  w.form, w.replaces_base
+  p.legacy_no as paradigm_id, p.human_key as paradigm_name, l.data as l_data, w.data as w_data, p.data as p_data, 
+  sense_flags, w.form, w.replaces_base
 from wordforms w
 join lexemes l on w.lexeme_id = l.id
 join entries e on l.entry_id = e.id
@@ -253,12 +253,15 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                     dati = deepcopy(row.data)
                 else:
                     dati = {}
-                for intentionaldiscard in ['ImportNotices', 'Pronunciations']:
+                for intentionaldiscard in ['ImportNotices']:
                     if dati.get(intentionaldiscard):
                         del dati[intentionaldiscard]
 
                 gram = dati.get('Gram')
-                if gram and gram.get('Flags'):
+                if not gram:
+                    gram = {}
+
+                if gram.get('Flags'):
                     flags = dict(gram.get('Flags'))
                     if 'Vārda daļa' in str(flags.get('Kategorija')):
                         continue
@@ -343,7 +346,7 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                     gram.update(flags)
                     del gram['Flags']
 
-                if gram and gram.get('StructuralRestrictions'):
+                if gram.get('StructuralRestrictions'):
                     sr = gram.get('StructuralRestrictions')
                     saprasts, newgram = decode_sr(gram, sr, row.paradigm_name)
                     gram |= newgram
@@ -364,6 +367,10 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                 if row.paradigm_name.startswith('verb') or (gram and gram.get('Vārdšķira') == 'Darbības vārds'):
                     default_verb_flag = 'Patstāvīgs darbības vārds'
                 gram, alt_verb_types = collect_flag_options(gram, row, 'Darbības vārda tips', default_verb_flag)
+
+                if dati.get('Pronunciations'):
+                    gram['pronunciations'] = dati['Pronunciations']
+                    del dati['Pronunciations']
 
                 if dati and (not gram or len(dati) != 1):
                     print(f'Interesting data for "{row.lemma}": {dati} / {row.data}')
@@ -429,8 +436,14 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
         if row.l_data:
             dati = deepcopy(row.l_data)
             gram = dati.get('Gram')
+            
             if gram and gram.get('Flags'):
                 flags.update(gram.get('Flags'))
+
+            if gram and gram.get('StructuralRestrictions'):
+                sr = gram.get('StructuralRestrictions')
+                saprasts, newgram = decode_sr(gram, sr, row.paradigm_name)
+                flags |= newgram
 
         if row.w_data:
             dati = deepcopy(row.w_data)
