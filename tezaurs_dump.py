@@ -11,7 +11,7 @@ connection = None
 attribute_stats = Counter()
 
 debuglist = set()
-# debuglist = set(['es'])
+# debuglist = set(['kas'])
 
 def db_connect(latgalian = False):
     global connection
@@ -177,11 +177,17 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
 
     sql_wordforms = """
 select l.id as lexeme_id, e.id as entry_id, e.human_key, lemma,
-  p.legacy_no as paradigm_id, l.data as l_data, w.data as w_data, p.data as p_data, w.form, w.replaces_base
+  p.legacy_no as paradigm_id, l.data as l_data, w.data as w_data, p.data as p_data, sense_flags,
+  w.form, w.replaces_base
 from wordforms w
 join lexemes l on w.lexeme_id = l.id
 join entries e on l.entry_id = e.id
 join paradigms p on l.paradigm_id = p.id
+left join (
+select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
+    from senses
+    where data->'Gram'->'Flags' is not null
+    group by entry_id) s on (s.entry_id = e.id and l.type_id not in (4,6))
 """
 
     nesaprastie = 0
@@ -239,6 +245,7 @@ join paradigms p on l.paradigm_id = p.id
                 lexeme['stem3'] = stem
 
             alt_ssf = False # Multiple options for conjunction syntactic function
+            alt_vvtips = False # Multiple options for pronoun types
             alt_verb_types = False # Multiple options for alternate verb types
 
             if row.data or row.sense_flags:
@@ -351,6 +358,7 @@ join paradigms p on l.paradigm_id = p.id
                         nesaprastie += 1
 
                 gram, alt_ssf = collect_flag_options(gram, row, 'Saikļa sintaktiskā funkcija')
+                gram, alt_vvtips = collect_flag_options(gram, row, 'Vietniekvārda tips')
 
                 default_verb_flag = None # mēs gribam lai defaultā vērtība ir tikai darbības vārdiem, un pārējiem ir none
                 if row.paradigm_name.startswith('verb') or (gram and gram.get('Vārdšķira') == 'Darbības vārds'):
@@ -365,7 +373,7 @@ join paradigms p on l.paradigm_id = p.id
                     for attribute in gram:                        
                         attribute_stats[attribute] += 1                
                     # If there are multiple values, flatten them with separator |
-                    gram = {k: "|".join(v) if isinstance(v, list) and k != 'Darbības vārda tips' else v for k, v in gram.items()}
+                    gram = {k: "|".join(v) if isinstance(v, list) and k not in ('Darbības vārda tips', 'Vietniekvārda tips') else v for k, v in gram.items()}
                     lexeme['attributes'] = gram
                         
 
@@ -377,6 +385,10 @@ join paradigms p on l.paradigm_id = p.id
             if alt_verb_types:
                 for verb_type in gram['Darbības vārda tips'] :
                     lexeme['attributes']['Darbības vārda tips'] = verb_type
+                    yield lexeme
+            elif alt_vvtips:
+                for pronoun_type in gram['Vietniekvārda tips'] :
+                    lexeme['attributes']['Vietniekvārda tips'] = pronoun_type
                     yield lexeme
             else:
                 yield lexeme  # Šis principā ir defaultais vienīgais galvenais yieldotājs normālajam gadījumam
@@ -429,7 +441,10 @@ join paradigms p on l.paradigm_id = p.id
         if not row.replaces_base:
             flags['Papildforma'] = 'Jā'
 
+        alt_vvtips = False # Multiple options for pronoun types
         if flags:
+            flags, alt_vvtips = collect_flag_options(flags, row, 'Vietniekvārda tips')
+
             for key in dict(flags):
                 value = flags[key]
                 if type(value) is list and len(value) == 1:
@@ -452,7 +467,13 @@ join paradigms p on l.paradigm_id = p.id
             lexeme['attributes'] = flags
             for attribute in flags:
                 attribute_stats[attribute] += 1
-        yield lexeme
+
+        if alt_vvtips:
+            for pronoun_type in flags['Vietniekvārda tips'] :
+                lexeme['attributes']['Vietniekvārda tips'] = pronoun_type
+                yield lexeme
+        else:
+            yield lexeme  # Šis principā ir defaultais vienīgais galvenais yieldotājs normālajam gadījumam
 
 def dump_lexemes(filename):
     with open(filename, 'w', encoding='utf-8') as f:
