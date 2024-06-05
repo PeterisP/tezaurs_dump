@@ -4,6 +4,7 @@ from db_config import db_connection_info
 import psycopg
 import psycopg.rows
 import json
+import sys
 from collections import Counter
 from copy import deepcopy
 
@@ -503,21 +504,16 @@ def dump_attribute_stats(filename):
             f.write(f'{attribute}\t{count}\n')
 
 if __name__ == "__main__":
-    db_connect()
+    latgalian = False
     filename = 'tezaurs_lexemes.json'
+    if len(sys.argv) > 1 and sys.argv[1].lower() == 'latgalian':
+        latgalian = True
+        filename = 'tezaurs_latgalian.json'
+
+    db_connect(latgalian=latgalian)
     dump_lexemes(filename)
     dump_attribute_stats('attributes.txt')
     if db_connection_info.get('Peteris') and not debuglist:
         filename = f'/Users/pet/Documents/NLP/morphology/src/main/resources/{filename}'
         dump_lexemes(filename)
     print(f'Done! Output written to {filename}')
-
-    db_connect(latgalian=True)
-    filename = 'tezaurs_latgalian.json'
-    dump_lexemes(filename)
-    dump_attribute_stats('attributes.txt')
-    if db_connection_info.get('Peteris') and not debuglist:
-        filename = f'/Users/pet/Documents/NLP/morphology/src/main/resources/{filename}'
-        dump_lexemes(filename)
-    print(f'Done! Output written to {filename}')
-
