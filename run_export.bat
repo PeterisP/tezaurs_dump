@@ -1,5 +1,8 @@
 REM export morpholex
 chcp 65001
-python -m tezaurs_dump
+REM Latvian like this
+::python -m tezaurs_dump
+REM Latgalian like this
+python -m tezaurs_dump Latgalian
 
 pause
