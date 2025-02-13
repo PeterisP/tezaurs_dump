@@ -118,7 +118,7 @@ def decode_sr(oldgram, sr, paradigm_name):
     if not saprasts and (sr.get('Restriction') == 'Kopā ar' or sr.get('Restriction') == 'Teikumos / noteikta veida struktūrās'):
         saprasts = True
     if not saprasts and sr.get('Restriction') == 'Vispārīgais lietojuma biežums' and sr.get('Frequency') in ['Reti', 'Pareti', 'Retāk']:
-        gram['Lietojuma biežums'] = sr.get('Frequency')
+        gram['Vispārīgais lietojuma biežums'] = sr.get('Frequency')
         saprasts = True
     return saprasts, gram
 
