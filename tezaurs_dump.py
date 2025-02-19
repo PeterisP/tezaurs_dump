@@ -201,8 +201,6 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
         for row in rows:
             if not row.paradigm_name:
                 continue
-            if row.lemma in ['būt']:
-                continue  # Hardcoded exceptions
             if debuglist:
                 if row.lemma in debuglist:
                     print(row)
@@ -315,8 +313,6 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                         else:
                             print(f'Nesaprasts divdabja veids {veids}')
 
-
-
                     # if row.paradigm_id == 36: # FIXME - šos Lauma labošot
                     #     if 'Vārds svešvalodā' in set(flags['Kategorija']) and 'Saīsinājums' in set(flags['Kategorija']):
                     #         print(f'Saīsinājums svešvalodā 36 {row.lemma}')
@@ -368,6 +364,10 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                 if row.paradigm_name.startswith('verb') or (gram and gram.get('Vārdšķira') == 'Darbības vārds'):
                     default_verb_flag = 'Patstāvīgs darbības vārds'
                 gram, alt_verb_types = collect_flag_options(gram, row, 'Darbības vārda tips', default_verb_flag)
+                if row.lemma == 'būt' and 'Palīgverbs' in gram['Darbības vārda tips']:
+                    gram['Darbības vārda tips'].remove('Palīgverbs')
+                    gram['Darbības vārda tips'].remove('Saitiņa')
+                    gram['Darbības vārda tips'].append("Palīgverbs 'būt'")
 
                 if dati.get('Pronunciations'):
                     gram['pronunciations'] = dati['Pronunciations']
@@ -459,6 +459,15 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
         if flags:
             flags, alt_vvtips = collect_flag_options(flags, row, 'Vietniekvārda tips')
 
+            default_verb_flag = None # mēs gribam lai defaultā vērtība ir tikai darbības vārdiem, un pārējiem ir none
+            if row.paradigm_name.startswith('verb') or (gram and gram.get('Vārdšķira') == 'Darbības vārds'):
+                default_verb_flag = 'Patstāvīgs darbības vārds'
+            gram, alt_verb_types = collect_flag_options(gram, row, 'Darbības vārda tips', default_verb_flag)
+            if row.lemma == 'būt' and 'Palīgverbs' in gram['Darbības vārda tips']:
+                gram['Darbības vārda tips'].remove('Palīgverbs')
+                gram['Darbības vārda tips'].remove('Saitiņa')
+                gram['Darbības vārda tips'].append("Palīgverbs 'būt'")
+
             for key in dict(flags):
                 value = flags[key]
                 if type(value) is list and len(value) == 1:
@@ -485,6 +494,10 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
         if alt_vvtips:
             for pronoun_type in flags['Vietniekvārda tips'] :
                 lexeme['attributes']['Vietniekvārda tips'] = pronoun_type
+                yield lexeme
+        elif alt_verb_types:
+            for verb_type in gram['Darbības vārda tips'] :
+                lexeme['attributes']['Darbības vārda tips'] = verb_type
                 yield lexeme
         else:
             yield lexeme  # Šis principā ir defaultais vienīgais galvenais yieldotājs normālajam gadījumam
