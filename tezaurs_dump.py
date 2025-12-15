@@ -398,6 +398,10 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                 for pronoun_type in gram['Vietniekvārda tips'] :
                     lexeme['attributes']['Vietniekvārda tips'] = pronoun_type
                     yield lexeme
+            elif lexeme.get('attributes') and lexeme['attributes'].get('Prievārdiskais apstākļa vārds') == 'Jā':
+                yield lexeme
+                lexeme['attributes']['Prievārdiskais apstākļa vārds'] = 'Nē'
+                yield lexeme
             else:
                 yield lexeme  # Šis principā ir defaultais vienīgais galvenais yieldotājs normālajam gadījumam
 
