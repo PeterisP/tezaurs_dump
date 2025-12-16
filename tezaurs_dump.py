@@ -464,13 +464,13 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
             flags, alt_vvtips = collect_flag_options(flags, row, 'Vietniekvārda tips')
 
             default_verb_flag = None # mēs gribam lai defaultā vērtība ir tikai darbības vārdiem, un pārējiem ir none
-            if row.paradigm_name.startswith('verb') or (gram and gram.get('Vārdšķira') == 'Darbības vārds'):
+            if row.paradigm_name.startswith('verb') or (flags and flags.get('Vārdšķira') == 'Darbības vārds'):
                 default_verb_flag = 'Patstāvīgs darbības vārds'
-            gram, alt_verb_types = collect_flag_options(gram, row, 'Darbības vārda tips', default_verb_flag)
-            if row.lemma == 'būt' and 'Palīgverbs' in gram['Darbības vārda tips']:
-                gram['Darbības vārda tips'].remove('Palīgverbs')
-                gram['Darbības vārda tips'].remove('Saitiņa')
-                gram['Darbības vārda tips'].append("Palīgverbs 'būt'")
+            gram, alt_verb_types = collect_flag_options(flags, row, 'Darbības vārda tips', default_verb_flag)
+            if row.lemma == 'būt' and 'Palīgverbs' in flags['Darbības vārda tips']:
+                flags['Darbības vārda tips'].remove('Palīgverbs')
+                flags['Darbības vārda tips'].remove('Saitiņa')
+                flags['Darbības vārda tips'].append("Palīgverbs 'būt'")
 
             for key in dict(flags):
                 value = flags[key]
@@ -491,6 +491,7 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                         flags['Locījums'] = locījumi[0]
                     else:
                         print(f'Wordforms vajadzētu būt tikai vienam locījumam, bet {row.form} ir {str(locījumi)}')
+            
             lexeme['attributes'] = flags
             for attribute in flags:
                 attribute_stats[attribute] += 1
@@ -500,7 +501,7 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
                 lexeme['attributes']['Vietniekvārda tips'] = pronoun_type
                 yield lexeme
         elif alt_verb_types:
-            for verb_type in gram['Darbības vārda tips'] :
+            for verb_type in flags['Darbības vārda tips'] :
                 lexeme['attributes']['Darbības vārda tips'] = verb_type
                 yield lexeme
         else:
