@@ -441,9 +441,11 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
         if row.l_data:
             dati = deepcopy(row.l_data)
             gram = dati.get('Gram')
-            
+
             if gram and gram.get('Flags'):
-                flags.update(gram.get('Flags'))
+                flatFlags = {k: "|".join(v) if isinstance(v, list) and k not in ('Darbības vārda tips', 'Vietniekvārda tips') else v for k, v in
+                        gram.get('Flags').items()}
+                flags.update(flatFlags)
 
             if gram and gram.get('StructuralRestrictions'):
                 sr = gram.get('StructuralRestrictions')
@@ -454,7 +456,9 @@ select entry_id, json_agg(distinct data->'Gram'->'Flags') sense_flags
             dati = deepcopy(row.w_data)
             gram = dati.get('Gram')
             if gram and gram.get('Flags'):
-                flags.update(gram.get('Flags'))
+                flatFlags = {k: "|".join(v) if isinstance(v, list) and k not in ('Darbības vārda tips', 'Vietniekvārda tips') else v for k, v in
+                        gram.get('Flags').items()}
+                flags.update(flatFlags)
 
         if not row.replaces_base:
             flags['Papildforma'] = 'Jā'
