@@ -1,3 +1,8 @@
+N.B. Starting 2026-04 development of this tool has been moved to https://github.com/LUMII-AILab/TezaursMorphoDump/
+
+
+
+
 # tezaurs_dump
 Script to prepare an offline data dump out of the Tezaurs.lv database
 
